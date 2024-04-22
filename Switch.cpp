@@ -2,17 +2,14 @@
 #include "Switch.h"
 #include "Arduino.h"
 
-void Switch::Switch(int pinNum, bool invertedRead, callback engageCallback, callback disengageCallback)
-  : buttonPin(pinNum),
-    inverted(invertedRead),
-    engage(engageCallback),
-    disengage(disengageCallback)
-{
+void Switch::setup(int pinNum, bool invertedRead, callback engageCallback, callback disengageCallback) {
+  buttonPin = pinNum;
+  inverted = invertedRead;
+  engage = engageCallback;
+  disengage = disengageCallback;
   lastButtonState = inverted ? HIGH : LOW;
   pinMode(pinNum, INPUT);
 }
-
-void Switch::Switch(){}
 
 void Switch::check() {
   int buttonRead = digitalRead(buttonPin);

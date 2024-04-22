@@ -4,14 +4,13 @@
 #include "Arduino.h"
 #include <Adafruit_MCP4728.h>
 
-void LFO::LFO(int freqPin, int dutyPin, int squarePin, int rangePin, int rangePinOut, int dacChan)
-  : freqInPin(freqPin),
-    dutyInPin(dutyPin),
-    pulseOutPin(squarePin),
-    rangeInPin(rangePin),
-    rangeOutPin(rangePinOut),
-    dacChannel(dacChan)
-{
+void LFO::setup(int freqPin, int dutyPin, int squarePin, int rangePin, int rangePinOut, int dacChan) {
+  freqInPin = freqPin;
+  dutyInPin = dutyPin;
+  pulseOutPin = squarePin;
+  rangeInPin = rangePin;
+  rangeOutPin = rangePinOut;
+  dacChannel = dacChan;
   pinMode(pulseOutPin, OUTPUT);
   pinMode(rangeOutPin, OUTPUT);
 
@@ -25,7 +24,7 @@ void LFO::LFO(int freqPin, int dutyPin, int squarePin, int rangePin, int rangePi
       this->_setHighRange(false);
     }
   };
-  rangeSwitch = Switch(rangeInPin, false, setHigh, setLow);
+  rangeSwitch.setup(rangeInPin, false, setHigh, setLow);
   this->_setHighRange(digitalRead(rangeInPin) == HIGH);
 }
 

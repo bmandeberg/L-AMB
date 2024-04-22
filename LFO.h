@@ -16,7 +16,7 @@ const long highFastestPeriod = 250; // 4000 Hz
 class LFO {
 
   public:
-    LFO(int freqPin, int dutyPin, int squarePin, int rangePin, int rangePinOut, int dacChan);
+    void setup(int freqPin, int dutyPin, int squarePin, int rangePin, int rangePinOut, int dacChan);
     void update();
     long period;
     float dutyCycle;

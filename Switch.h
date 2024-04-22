@@ -6,7 +6,7 @@ using callback = std::function<void()>;
 class Switch {
 
   public:
-    Switch(int pinNum, bool invertedRead, callback engageCallback, callback disengageCallback);
+    void setup(int pinNum, bool invertedRead, callback engageCallback, callback disengageCallback);
     void check();
 
   private:
