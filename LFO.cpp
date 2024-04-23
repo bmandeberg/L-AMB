@@ -46,7 +46,7 @@ void LFO::update() {
   // if using external clock input
   if (this->_usingClockIn()) {
     // automatically update range based on clock frequency
-    long crossoverPeriod = (lowFastestPeriod - highSlowestPeriod) / 2;
+    long crossoverPeriod = (lowFastestPeriod - highSlowestPeriod) * 0.5;
     if (clockPeriod < crossoverPeriod && highRange) {
       this->_setHighRange(false);
     } else if (clockPeriod > crossoverPeriod && !highRange) {
@@ -68,7 +68,7 @@ void LFO::update() {
       optionIndex++;
     }
     int coefficient = options[knobIndex];
-    period = freq < ADC_RESOLUTION / 2 ? clockPeriod * coefficient : clockPeriod / coefficient;
+    period = freq < ADC_RESOLUTION * 0.5 ? clockPeriod * coefficient : clockPeriod / coefficient;
   } else {
     long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
     long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
