@@ -16,30 +16,35 @@ const long highFastestPeriod = 250; // 4000 Hz
 class LFO {
 
   public:
-    void setup(int freqPin, int dutyPin, int squarePin, int rangePin, int rangePinOut, int dacChan);
+    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int dacChan);
     void update();
+    float currentValue();
+
+  private:
     long period;
     float dutyCycle;
     bool rising = false;
-
-  private:
     int dacChannel;
     int freqInPin;
     int dutyInPin;
-    int pulseOutPin;
-    int rangeInPin;
+    int waveSwitchPin;
+    bool triangleWaveSelected = false;
+    bool lastTriangleWaveSelected = false;
+    int rangeSwitchPin;
     int rangeOutPin;
     bool highRange = false;
     long lastPeriod;
     float lastDutyCycle;
     bool lastClockSelected;
-    Switch rangeSwitch;
     Timer<1, micros> timer;
+    Switch waveSwitch;
+    Switch rangeSwitch;
     void _write(float targetVpp);
     void _setTimer(int delay);
     void _writeCycle(bool updatePeriod);
     bool _usingClockIn();
     void _setHighRange();
+    float _currentDuty();
 };
 
 #endif // LFO_H

@@ -2,16 +2,14 @@
 #include "LFO.h"
 #include "util.h"
 #include "Arduino.h"
-#include <Adafruit_MCP4728.h>
 
-void LFO::setup(int freqPin, int dutyPin, int squarePin, int rangePin, int rangePinOut, int dacChan) {
+void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int dacChan) {
   freqInPin = freqPin;
   dutyInPin = dutyPin;
-  pulseOutPin = squarePin;
-  rangeInPin = rangePin;
+  waveSwitchPin = wavePin;
+  rangeSwitchPin = rangePin;
   rangeOutPin = rangePinOut;
   dacChannel = dacChan;
-  pinMode(pulseOutPin, OUTPUT);
   pinMode(rangeOutPin, OUTPUT);
 
   callback setHigh = [this]() {
@@ -24,8 +22,15 @@ void LFO::setup(int freqPin, int dutyPin, int squarePin, int rangePin, int range
       this->_setHighRange(false);
     }
   };
-  rangeSwitch.setup(rangeInPin, false, setHigh, setLow);
-  this->_setHighRange(digitalRead(rangeInPin) == HIGH);
+  rangeSwitch.setup(rangeSwitchPin, false, setHigh, setLow);
+  this->_setHighRange(digitalRead(rangeSwitchPin) == HIGH);
+  
+  callback toggleWave = [this]() {
+    triangleWaveSelected = !triangleWaveSelected;
+  };
+  waveSwitch.setup(waveSwitchPin, false, toggleWave, toggleWave);
+  triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
+  lastTriangleWaveSelected = triangleWaveSelected;
 }
 
 void LFO::update() {
@@ -33,7 +38,7 @@ void LFO::update() {
 
   // reset automatic range selection if clock input is removed
   if (lastClockSelected != clockSelected && !this->_usingClockIn()) {
-    this->_setHighRange(digitalRead(rangeInPin) == HIGH);
+    this->_setHighRange(digitalRead(rangeSwitchPin) == HIGH);
   }
   
   // set LFO period
@@ -73,7 +78,7 @@ void LFO::update() {
   // set LFO duty cycle
   dutyCycle = floatMap((float)analogRead(dutyInPin), 0.0, (float)ADC_RESOLUTION, 0.1, 0.9);
 
-  bool changed = period != lastPeriod || dutyCycle != lastDutyCycle
+  bool changed = period != lastPeriod || dutyCycle != lastDutyCycle || triangleWaveSelected != lastTriangleWaveSelected;
   if (changed) {
     this->_writeCycle(true);
   }
@@ -81,19 +86,25 @@ void LFO::update() {
   lastPeriod = period;
   lastDutyCycle = dutyCycle;
   lastClockSelected = clockSelected;
+  lastTriangleWaveSelected = triangleWaveSelected;
   timer.tick();
 }
 
 void LFO::_write(float targetVpp) {
-  digitalWrite(pulseOutPin, rising ? HIGH : LOW);
-
-  // calculate pulse voltage, either top or bottom
-  float pwm = rising ? dutyCycle : 1.0 - dutyCycle;
-  float V = rising ? targetVpp : -targetVpp;
-  float C = highRange ? highC : lowC;
-  float freq = 1 / ((float)period / 1.0e6);
-  float voltage = V * R * C * freq / pwm;
-  int dacValue = DAC_RESOLUTION * 0.5 + voltage / 5.0 * DAC_RESOLUTION;
+  int dacValue = 0;
+  int halfDac = DAC_RESOLUTION * 0.5;
+  if (triangleWaveSelected) {
+    // calculate pulse voltage, either top or bottom
+    float pwm = rising ? dutyCycle : 1.0 - dutyCycle;
+    float V = rising ? targetVpp : -targetVpp;
+    float C = highRange ? highC : lowC;
+    float freq = 1 / ((float)period * 1.0e-6);
+    float voltage = V * R * C * freq / pwm;
+    dacValue = halfDac + voltage * 0.2 * DAC_RESOLUTION;
+  } else {
+    // 1Vpp square wave
+    dacValue = halfDac + DAC_RESOLUTION * 0.1 * (rising ? 1 : -1);
+  }
   mcp.setChannelValue(dacChannel, constrain(dacValue, 0, DAC_RESOLUTION));
 }
 
@@ -106,7 +117,7 @@ void LFO::_setTimer(long delay) {
 
 void LFO::_writeCycle(bool updatePeriod) {
   float targetVpp = 1.0;
-  float duty = rising ? dutyCycle : 1 - dutyCycle;
+  float duty = this->_currentDuty();
   long cyclePeriod = period * duty;
   long timerPeriod = cyclePeriod;
 
@@ -126,8 +137,7 @@ void LFO::_writeCycle(bool updatePeriod) {
     }
   } else {
     rising = !rising;
-    float duty = rising ? dutyCycle : 1 - dutyCycle;
-    timerPeriod = period * duty;
+    timerPeriod = period * this->_currentDuty();
   }
 
   this->_setTimer(timerPeriod);
@@ -141,4 +151,19 @@ bool LFO::_usingClockIn() {
 void LFO::_setHighRange(bool rangeHigh) {
   highRange = rangeHigh;
   digitalWrite(rangeOutPin, rangeHigh ? HIGH : LOW);
+}
+
+float LFO::_currentDuty() {
+  return duty = rising ? dutyCycle : 1 - dutyCycle;
+}
+
+float LFO::currentValue() {
+  if (!triangleWaveSelected) {
+    return rising ? 1.0 : 0.0;
+  } else {
+    auto ticksLeft = timer.ticks();
+    long cyclePeriod = period * this->_currentDuty();
+    float percentLeft = (float)ticksLeft / (float)cyclePeriod;
+    return rising ? 1.0 - percentLeft : percentLeft;
+  }
 }

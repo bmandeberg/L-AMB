@@ -6,8 +6,12 @@
 
 Adafruit_MCP4728 mcp;
 const int DAC_RESOLUTION = pow(2, 12) - 1;
-int clockInPin = 7;
-int clockSelectPin = 9;
+const int clockInPin = 7;
+const int clockSelectPin = 9;
+const int led1Pin = 10;
+const int led2Pin = 11;
+const int led3Pin = 12;
+const int led4Pin = 13;
 bool clockSelected = false;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
