@@ -1,6 +1,5 @@
 #include "L-AMB.h"
 #include "LFO.h"
-#include "util.h"
 #include "Arduino.h"
 
 void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int dacChan) {
@@ -166,4 +165,8 @@ float LFO::currentValue() {
     float percentLeft = (float)ticksLeft / (float)cyclePeriod;
     return rising ? 1.0 - percentLeft : percentLeft;
   }
+}
+
+float floatMap(float x, float in_min, float in_max, float out_min, float out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
