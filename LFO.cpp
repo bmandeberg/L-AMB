@@ -70,6 +70,7 @@ void LFO::update() {
     int coefficient = options[knobIndex];
     period = freq < ADC_RESOLUTION * 0.5 ? clockPeriod * coefficient : clockPeriod / coefficient;
   } else {
+    // set LFO period based on frequency knob
     long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
     long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
     period = map(freq, 0, ADC_RESOLUTION, slowestPeriod, fastestPeriod);
@@ -78,8 +79,8 @@ void LFO::update() {
   // set LFO duty cycle
   dutyCycle = floatMap((float)analogRead(dutyInPin), 0.0, (float)ADC_RESOLUTION, 0.1, 0.9);
 
-  bool changed = period != lastPeriod || dutyCycle != lastDutyCycle || triangleWaveSelected != lastTriangleWaveSelected;
-  if (changed) {
+  // schedule DAC update if necessary
+  if (period != lastPeriod || dutyCycle != lastDutyCycle || triangleWaveSelected != lastTriangleWaveSelected) {
     this->_writeCycle(true);
   }
 
@@ -90,20 +91,21 @@ void LFO::update() {
   timer.tick();
 }
 
+// set DAC output
 void LFO::_write(float targetVpp) {
-  int dacValue = 0;
   int halfDac = DAC_RESOLUTION * 0.5;
+  int dacValue = halfDac;
   if (triangleWaveSelected) {
-    // calculate pulse voltage, either top or bottom
+    // calculate pulse voltage (either top or bottom) that is fed to the integrator
     float pwm = rising ? dutyCycle : 1.0 - dutyCycle;
     float V = rising ? targetVpp : -targetVpp;
     float C = highRange ? highC : lowC;
     float freq = 1 / ((float)period * 1.0e-6);
     float voltage = V * R * C * freq / pwm;
-    dacValue = halfDac + voltage * 0.2 * DAC_RESOLUTION;
+    dacValue += voltage * 0.2 * DAC_RESOLUTION;
   } else {
     // 1Vpp square wave
-    dacValue = halfDac + DAC_RESOLUTION * 0.1 * (rising ? 1 : -1);
+    dacValue += DAC_RESOLUTION * 0.1 * (rising ? 1 : -1);
   }
   mcp.setChannelValue(dacChannel, constrain(dacValue, 0, DAC_RESOLUTION));
 }
@@ -115,12 +117,14 @@ void LFO::_setTimer(long delay) {
   });
 }
 
+// one "cycle" is either the duty cycle or the inverse of the duty cycle (either rising or falling part of the wave)
 void LFO::_writeCycle(bool updatePeriod) {
   float targetVpp = 1.0;
   float duty = this->_currentDuty();
   long cyclePeriod = period * duty;
   long timerPeriod = cyclePeriod;
 
+  // cancel and restart scheduled DAC update if period changes
   if (updatePeriod) {
     auto ticksLeft = timer.ticks();
     timer.cancel();
@@ -131,6 +135,7 @@ void LFO::_writeCycle(bool updatePeriod) {
 
     if (alreadyGoneTooFar) {
       rising = !rising;
+      timerPeriod = period * this->_currentDuty();
       targetVpp *= 1.0 - percentLeft;
     } else {
       timerPeriod = cyclePeriod * percentLeft;

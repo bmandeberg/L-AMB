@@ -6,8 +6,8 @@
 
 const int ADC_RESOLUTION = pow(2, 10) - 1;
 const float R = 47000.0;
-const float lowC = 1.0e-6;
-const float highC = 1.2e-9
+const float lowC = 1.0e-6; // 1uF
+const float highC = 1.2e-9 // 1.2nF
 const long lowSlowestPeriod = 20000000; // 0.05 Hz
 const long lowFastestPeriod = 200000; // 5 Hz
 const long highSlowestPeriod = 20000; // 50 Hz
