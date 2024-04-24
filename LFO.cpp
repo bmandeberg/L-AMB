@@ -46,11 +46,12 @@ void LFO::update() {
   if (this->_usingClockIn()) {
     // automatically update range based on clock frequency
     long crossoverPeriod = (lowFastestPeriod - highSlowestPeriod) * 0.5;
-    if (clockPeriod < crossoverPeriod && highRange) {
+    if (clockPeriod > crossoverPeriod && highRange) {
       this->_setHighRange(false);
-    } else if (clockPeriod > crossoverPeriod && !highRange) {
+    } else if (clockPeriod < crossoverPeriod && !highRange) {
       this->_setHighRange(true);
     }
+
     // freq knob sweeps from divide by 9 to multiply by 9 of clock frequency
     int maxDivMult = 9;
     int numOptions = (maxDivMult - 1) * 2 + 1;
