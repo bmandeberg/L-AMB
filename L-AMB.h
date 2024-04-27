@@ -15,6 +15,6 @@ const int led4Pin = 13;
 bool clockSelected = false;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
-const long minClockPeriod = 10;
+const long minClockPeriod = 12;
 
 #endif // LAMB_H

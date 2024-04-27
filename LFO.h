@@ -43,7 +43,7 @@ class LFO {
     void _setTimer(int delay);
     void _writeCycle(bool updatePeriod);
     bool _usingClockIn();
-    void _setHighRange();
+    void _setRange();
     float _currentDuty();
 };
 

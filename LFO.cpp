@@ -13,16 +13,16 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePi
 
   callback setHigh = [this]() {
     if (!this->_usingClockIn()) {
-      this->_setHighRange(true);
+      this->_setRange(true);
     }
   };
   callback setLow = [this]() {
     if (!this->_usingClockIn()) {
-      this->_setHighRange(false);
+      this->_setRange(false);
     }
   };
   rangeSwitch.setup(rangeSwitchPin, false, setHigh, setLow);
-  this->_setHighRange(digitalRead(rangeSwitchPin) == HIGH);
+  this->_setRange(digitalRead(rangeSwitchPin) == HIGH);
   
   callback toggleWave = [this]() {
     triangleWaveSelected = !triangleWaveSelected;
@@ -34,10 +34,11 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePi
 
 void LFO::update() {
   rangeSwitch.check();
+  waveSwitch.check();
 
   // reset automatic range selection if clock input is removed
   if (lastClockSelected != clockSelected && !this->_usingClockIn()) {
-    this->_setHighRange(digitalRead(rangeSwitchPin) == HIGH);
+    this->_setRange(digitalRead(rangeSwitchPin) == HIGH);
   }
   
   // set LFO period
@@ -47,9 +48,9 @@ void LFO::update() {
     // automatically update range based on clock frequency
     long crossoverPeriod = (lowFastestPeriod - highSlowestPeriod) * 0.5;
     if (clockPeriod > crossoverPeriod && highRange) {
-      this->_setHighRange(false);
+      this->_setRange(false);
     } else if (clockPeriod < crossoverPeriod && !highRange) {
-      this->_setHighRange(true);
+      this->_setRange(true);
     }
 
     // freq knob sweeps from divide by 9 to multiply by 9 of clock frequency
@@ -77,7 +78,10 @@ void LFO::update() {
   }
 
   // set LFO duty cycle
-  dutyCycle = floatMap((float)analogRead(dutyInPin), 0.0, (float)ADC_RESOLUTION, 0.1, 0.9);
+  float minDutyCycle = 0.1;
+  float maxDutyCycle = 0.9;
+  float mappedDutyCycle = floatMap((float)analogRead(dutyInPin), 0.0, (float)ADC_RESOLUTION, minDutyCycle, maxDutyCycle);
+  dutyCycle = constrain(mappedDutyCycle, minDutyCycle, maxDutyCycle);
 
   // schedule DAC update if necessary
   if (period != lastPeriod || dutyCycle != lastDutyCycle || triangleWaveSelected != lastTriangleWaveSelected) {
@@ -153,7 +157,7 @@ bool LFO::_usingClockIn() {
   return clockSelected && clockPeriod > minClockPeriod;
 }
 
-void LFO::_setHighRange(bool rangeHigh) {
+void LFO::_setRange(bool rangeHigh) {
   highRange = rangeHigh;
   digitalWrite(rangeOutPin, rangeHigh ? HIGH : LOW);
 }
@@ -162,6 +166,7 @@ float LFO::_currentDuty() {
   return duty = rising ? dutyCycle : 1 - dutyCycle;
 }
 
+// current normalized value of the LFO
 float LFO::currentValue() {
   if (!triangleWaveSelected) {
     return rising ? 1.0 : 0.0;
