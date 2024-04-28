@@ -1,6 +1,7 @@
-#include "L-AMB.h"
 #include "LFO.h"
 #include "Arduino.h"
+
+LFO* LFO::instance = nullptr;
 
 void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int dacChan) {
   freqInPin = freqPin;
@@ -11,22 +12,21 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePi
   dacChannel = dacChan;
   pinMode(rangeOutPin, OUTPUT);
 
-  callback setHigh = [this]() {
-    if (!this->_usingClockIn()) {
-      this->_setRange(true);
-    }
-  };
-  callback setLow = [this]() {
-    if (!this->_usingClockIn()) {
-      this->_setRange(false);
-    }
-  };
+  Callback setHigh;
+  setHigh.type = CallbackType::MEMBER_FUNCTION;
+  setHigh.cb.bound.obj = this;
+  setHigh.cb.bound.mfunc = &LFO::setHigh;
+  Callback setLow;
+  setLow.type = CallbackType::MEMBER_FUNCTION;
+  setLow.cb.bound.obj = this;
+  setLow.cb.bound.mfunc = &LFO::setLow;
   rangeSwitch.setup(rangeSwitchPin, false, setHigh, setLow);
   this->_setRange(digitalRead(rangeSwitchPin) == HIGH);
   
-  callback toggleWave = [this]() {
-    triangleWaveSelected = !triangleWaveSelected;
-  };
+  Callback toggleWave;
+  toggleWave.type = CallbackType::MEMBER_FUNCTION;
+  toggleWave.cb.bound.obj = this;
+  toggleWave.cb.bound.mfunc = &LFO::toggleWave;
   waveSwitch.setup(waveSwitchPin, false, toggleWave, toggleWave);
   triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
   lastTriangleWaveSelected = triangleWaveSelected;
@@ -85,7 +85,7 @@ void LFO::update() {
 
   // schedule DAC update if necessary
   if (period != lastPeriod || dutyCycle != lastDutyCycle || triangleWaveSelected != lastTriangleWaveSelected) {
-    this->_writeCycle(true);
+    this->writeCycle(true);
   }
 
   lastPeriod = period;
@@ -114,15 +114,20 @@ void LFO::_write(float targetVpp) {
   mcp.setChannelValue(dacChannel, constrain(dacValue, 0, DAC_RESOLUTION));
 }
 
+bool LFO::timerCallback(void *arg) {
+  if (instance) {
+    instance->writeCycle(false);
+  }
+  return false;
+}
+
 void LFO::_setTimer(long delay) {
-  timer.in(delay, [this](void*) -> bool {
-    this->_writeCycle(false);
-    return false;
-  });
+  instance = this;
+  timer.in(delay, timerCallback);
 }
 
 // one "cycle" is either the duty cycle or the inverse of the duty cycle (either rising or falling part of the wave)
-void LFO::_writeCycle(bool updatePeriod) {
+void LFO::writeCycle(bool updatePeriod) {
   float targetVpp = 1.0;
   float duty = this->_currentDuty();
   long cyclePeriod = period * duty;
@@ -135,7 +140,6 @@ void LFO::_writeCycle(bool updatePeriod) {
     long lastCyclePeriod = lastPeriod * duty;
     float percentLeft = (float)ticksLeft / (float)lastCyclePeriod;
     bool alreadyGoneTooFar = lastCyclePeriod - ticksLeft > cyclePeriod;
-    long newTicksLeft = alreadyGoneTooFar ? cyclePeriod : cyclePeriod * percentLeft;
 
     if (alreadyGoneTooFar) {
       rising = !rising;
@@ -163,7 +167,7 @@ void LFO::_setRange(bool rangeHigh) {
 }
 
 float LFO::_currentDuty() {
-  return duty = rising ? dutyCycle : 1 - dutyCycle;
+  return rising ? dutyCycle : 1 - dutyCycle;
 }
 
 // current normalized value of the LFO
@@ -176,6 +180,22 @@ float LFO::currentValue() {
     float percentLeft = (float)ticksLeft / (float)cyclePeriod;
     return rising ? 1.0 - percentLeft : percentLeft;
   }
+}
+
+void LFO::setHigh() {
+  if (!this->_usingClockIn()) {
+    this->_setRange(true);
+  }
+}
+
+void LFO::setLow() {
+  if (!this->_usingClockIn()) {
+    this->_setRange(false);
+  }
+}
+
+void LFO::toggleWave() {
+  triangleWaveSelected = !triangleWaveSelected;
 }
 
 float floatMap(float x, float in_min, float in_max, float out_min, float out_max) {

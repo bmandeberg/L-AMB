@@ -2,7 +2,7 @@
 #include "Switch.h"
 #include "Arduino.h"
 
-void Switch::setup(int pinNum, bool invertedRead, callback engageCallback, callback disengageCallback) {
+void Switch::setup(int pinNum, bool invertedRead, Callback engageCallback, Callback disengageCallback) {
   buttonPin = pinNum;
   inverted = invertedRead;
   engage = engageCallback;
@@ -28,12 +28,10 @@ void Switch::_handlePress(int buttonRead) {
     int onState = inverted ? LOW : HIGH;
     if (buttonState == onState) {
       // button pressed
-      engage();
+      engage.invoke();
     } else {
       // button released
-      if (disengage) {
-        disengage();
-      }
+      disengage.invoke();
     }
   }
 }

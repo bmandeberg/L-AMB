@@ -2,8 +2,29 @@
 #include "Switch.h"
 #include "LFO.h"
 
+Adafruit_MCP4728 mcp;
+const int DAC_RESOLUTION = pow(2, 12) - 1;
+const int clockInPin = 7;
+const int clockSelectPin = 9;
+const int led1Pin = 10;
+const int led2Pin = 11;
+const int led3Pin = 12;
+const int led4Pin = 13;
+bool clockSelected = false;
+volatile long clockPeriod = 0;
+volatile long lastClockTime = 0;
+const long minClockPeriod = 12;
+
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
+
+void toggleClockSelected() {
+  clockSelected = !clockSelected;
+  if (!clockSelected) {
+    lastClockTime = 0;
+    clockPeriod = 0;
+  }
+}
 
 void setup() {
   mcp.begin();
@@ -15,14 +36,10 @@ void setup() {
   pinMode(led3Pin, OUTPUT);
   pinMode(led4Pin, OUTPUT);
 
-  auto toggleClockSelected = []() {
-    clockSelected = !clockSelected;
-    if (!clockSelected) {
-      lastClockTime = 0;
-      clockPeriod = 0;
-    }
-  };
-  clockSelectSwitch.setup(clockSelectPin, true, toggleClockSelected, toggleClockSelected);
+  Callback toggleClockCallback;
+  toggleClockCallback.type = CallbackType::FUNCTION;
+  toggleClockCallback.cb.func = toggleClockSelected;
+  clockSelectSwitch.setup(clockSelectPin, true, toggleClockCallback, toggleClockCallback);
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 

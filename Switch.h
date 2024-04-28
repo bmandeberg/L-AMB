@@ -1,12 +1,12 @@
 #ifndef SWITCH_H
 #define SWITCH_H
 
-using callback = std::function<void()>;
+#include "Callback.h"
 
 class Switch {
 
   public:
-    void setup(int pinNum, bool invertedRead, callback engageCallback, callback disengageCallback);
+    void setup(int pinNum, bool invertedRead, Callback engageCallback, Callback disengageCallback);
     void check();
 
   private:
@@ -18,8 +18,8 @@ class Switch {
     int lastButtonState;
     void _handlePress(int buttonRead);
     unsigned long _debounceDifference();
-    callback engage;
-    callback disengage;
+    Callback engage;
+    Callback disengage;
 };
 
 #endif // SWITCH_H
