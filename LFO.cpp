@@ -13,6 +13,7 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePi
   dacChannel = dacChan;
   pinMode(rangeOutPin, OUTPUT);
   pinMode(resetPulsePin, OUTPUT);
+  digitalWrite(resetPulsePin, LOW);
 
   Callback setHigh;
   setHigh.type = CallbackType::MEMBER_FUNCTION;
