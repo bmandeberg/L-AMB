@@ -6,7 +6,7 @@
 class Switch {
 
   public:
-    void setup(int pinNum, bool invertedRead, Callback engageCallback, Callback disengageCallback);
+    void setup(int pinNum, bool invertedRead, bool pullup, Callback engageCallback, Callback disengageCallback);
     void check();
 
   private:

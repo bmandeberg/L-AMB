@@ -13,6 +13,7 @@ const long lowSlowestPeriod = 20000000; // 0.05 Hz
 const long lowFastestPeriod = 200000; // 5 Hz
 const long highSlowestPeriod = 20000; // 50 Hz
 const long highFastestPeriod = 250; // 4000 Hz
+const long resetPulseDuration = 28;
 
 class LFO {
 
@@ -20,7 +21,7 @@ class LFO {
     static LFO* instance; // instance pointer for binding to Timer.in
     static bool timerCallback(void* arg);
     void writeCycle(bool updatePeriod);
-    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int dacChan);
+    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int resetPin, int dacChan);
     void update();
     float currentValue();
     void setHigh();
@@ -31,6 +32,7 @@ class LFO {
     long period;
     float dutyCycle;
     bool rising = false;
+    bool lastRising = false;
     int dacChannel;
     int freqInPin;
     int dutyInPin;
@@ -39,10 +41,13 @@ class LFO {
     bool lastTriangleWaveSelected = false;
     int rangeSwitchPin;
     int rangeOutPin;
+    int resetPulsePin;
     bool highRange = false;
     long lastPeriod;
     float lastDutyCycle;
     bool lastClockSelected;
+    bool resetting = false;
+    long resetTime;
     Timer<1, micros> timer;
     Switch waveSwitch;
     Switch rangeSwitch;

@@ -39,20 +39,22 @@ void setup() {
   Callback toggleClockCallback;
   toggleClockCallback.type = CallbackType::FUNCTION;
   toggleClockCallback.cb.func = toggleClockSelected;
-  clockSelectSwitch.setup(clockSelectPin, true, toggleClockCallback, toggleClockCallback);
+  clockSelectSwitch.setup(clockSelectPin, false, true, toggleClockCallback, toggleClockCallback);
+
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
-  lfo1.setup(A0, A1, 15, 16, 14, MCP4728_CHANNEL_A);
-  lfo2.setup(A2, A3, 8, 6, 4, MCP4728_CHANNEL_B);
-  lfo3.setup(A4, A5, 0, 1, 5, MCP4728_CHANNEL_C);
+  lfo1.setup(A0, A1, 15, 16, 14, 8, MCP4728_CHANNEL_A);
+  // lfo2.setup(A2, A3, 6, 4, 0, 1, MCP4728_CHANNEL_B);
+  // TODO: access extra pins on the 32u4! Can't use lfo3 until that happens
+  // lfo3.setup(A4, A5, 5, PE2, PB0, PD5, MCP4728_CHANNEL_C);
 }
 
 void loop() {
   clockSelectSwitch.check();
   lfo1.update();
-  lfo2.update();
-  lfo3.update();
+  // lfo2.update();
+  // lfo3.update();
   updateLEDs();
 }
 

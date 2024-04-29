@@ -2,13 +2,13 @@
 #include "Switch.h"
 #include "Arduino.h"
 
-void Switch::setup(int pinNum, bool invertedRead, Callback engageCallback, Callback disengageCallback) {
+void Switch::setup(int pinNum, bool invertedRead, bool pullup, Callback engageCallback, Callback disengageCallback) {
   buttonPin = pinNum;
   inverted = invertedRead;
   engage = engageCallback;
   disengage = disengageCallback;
   lastButtonState = inverted ? HIGH : LOW;
-  pinMode(pinNum, INPUT);
+  pinMode(pinNum, pullup ? INPUT_PULLUP : INPUT);
 }
 
 void Switch::check() {

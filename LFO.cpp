@@ -3,14 +3,16 @@
 
 LFO* LFO::instance = nullptr;
 
-void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int dacChan) {
+void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int resetPin, int dacChan) {
   freqInPin = freqPin;
   dutyInPin = dutyPin;
   waveSwitchPin = wavePin;
   rangeSwitchPin = rangePin;
   rangeOutPin = rangePinOut;
+  resetPulsePin = resetPin;
   dacChannel = dacChan;
   pinMode(rangeOutPin, OUTPUT);
+  pinMode(resetPulsePin, OUTPUT);
 
   Callback setHigh;
   setHigh.type = CallbackType::MEMBER_FUNCTION;
@@ -20,14 +22,14 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePi
   setLow.type = CallbackType::MEMBER_FUNCTION;
   setLow.cb.bound.obj = this;
   setLow.cb.bound.mfunc = &LFO::setLow;
-  rangeSwitch.setup(rangeSwitchPin, false, setHigh, setLow);
+  rangeSwitch.setup(rangeSwitchPin, false, false, setHigh, setLow);
   this->_setRange(digitalRead(rangeSwitchPin) == HIGH);
   
   Callback toggleWave;
   toggleWave.type = CallbackType::MEMBER_FUNCTION;
   toggleWave.cb.bound.obj = this;
   toggleWave.cb.bound.mfunc = &LFO::toggleWave;
-  waveSwitch.setup(waveSwitchPin, false, toggleWave, toggleWave);
+  waveSwitch.setup(waveSwitchPin, false, false, toggleWave, toggleWave);
   triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
   lastTriangleWaveSelected = triangleWaveSelected;
 }
@@ -88,10 +90,23 @@ void LFO::update() {
     this->writeCycle(true);
   }
 
+  // start reset pulse
+  if (lastRising != rising && rising) {
+    digitalWrite(resetPulsePin, HIGH);
+    resetting = true;
+    resetTime = micros();
+  }
+  // cancel reset pulse
+  if (resetting && micros() - resetTime > resetPulseDuration) {
+    digitalWrite(resetPulsePin, LOW);
+    resetting = false;
+  }
+
   lastPeriod = period;
   lastDutyCycle = dutyCycle;
   lastClockSelected = clockSelected;
   lastTriangleWaveSelected = triangleWaveSelected;
+  lastRising = rising;
   timer.tick();
 }
 
