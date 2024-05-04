@@ -21,7 +21,7 @@ class LFO {
     static LFO* instance; // instance pointer for binding to Timer.in
     static bool timerCallback(void* arg);
     void writeCycle(bool updatePeriod);
-    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int resetPin, int dacChan);
+    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int squarePinOut, int dacChan);
     void update();
     float currentValue();
     void setHigh();
@@ -41,7 +41,7 @@ class LFO {
     bool lastTriangleWaveSelected = false;
     int rangeSwitchPin;
     int rangeOutPin;
-    int resetPulsePin;
+    int squareOutPin;
     bool highRange = false;
     long lastPeriod;
     float lastDutyCycle;

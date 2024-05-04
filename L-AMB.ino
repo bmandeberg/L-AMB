@@ -28,17 +28,15 @@ void toggleClockSelected() {
 
 void setup() {
   mcp.begin();
-  // DAC channel D is set to 0.5V, which is added to the final output to center it in the 6Vpp analog range
-  mcp.setChannelValue(MCP4728_CHANNEL_D, DAC_RESOLUTION * 0.1);
 
   pinMode(led1Pin, OUTPUT);
   pinMode(led2Pin, OUTPUT);
-  pinMode(led3Pin, OUTPUT);
-  pinMode(led4Pin, OUTPUT);
+  // pinMode(led3Pin, OUTPUT);
+  // pinMode(led4Pin, OUTPUT);
 
   Callback toggleClockCallback;
   toggleClockCallback.type = CallbackType::FUNCTION;
-  toggleClockCallback.cb.func = toggleClockSelected;
+  toggleClockCallback.cb.fn = toggleClockSelected;
   clockSelectSwitch.setup(clockSelectPin, false, true, toggleClockCallback, toggleClockCallback);
 
   pinMode(clockInPin, INPUT);

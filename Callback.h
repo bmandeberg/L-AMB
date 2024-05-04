@@ -4,9 +4,9 @@
 class LFO;
 
 union CallbackUnion {
-  void (*func)();
+  void (*fn)();
   struct {
-    void (LFO::*mfunc)();
+    void (LFO::*memberFn)();
     LFO* obj;
   } bound;
 };
@@ -23,11 +23,11 @@ struct Callback {
   void invoke() {
     switch (type) {
       case CallbackType::FUNCTION:
-        if (cb.func) cb.func();
+        if (cb.fn) cb.fn();
         break;
       case CallbackType::MEMBER_FUNCTION:
-        if (cb.bound.obj && cb.bound.mfunc) {
-          (cb.bound.obj->*(cb.bound.mfunc))();
+        if (cb.bound.obj && cb.bound.memberFn) {
+          (cb.bound.obj->*(cb.bound.memberFn))();
         }
         break;
     }

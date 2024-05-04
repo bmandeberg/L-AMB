@@ -3,33 +3,33 @@
 
 LFO* LFO::instance = nullptr;
 
-void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int resetPin, int dacChan) {
+void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int squarePinOut, int dacChan) {
   freqInPin = freqPin;
   dutyInPin = dutyPin;
   waveSwitchPin = wavePin;
   rangeSwitchPin = rangePin;
   rangeOutPin = rangePinOut;
-  resetPulsePin = resetPin;
+  squareOutPin = squarePinOut;
   dacChannel = dacChan;
   pinMode(rangeOutPin, OUTPUT);
-  pinMode(resetPulsePin, OUTPUT);
-  digitalWrite(resetPulsePin, LOW);
+  pinMode(squareOutPin, OUTPUT);
+  digitalWrite(squareOutPin, LOW);
 
   Callback setHigh;
   setHigh.type = CallbackType::MEMBER_FUNCTION;
   setHigh.cb.bound.obj = this;
-  setHigh.cb.bound.mfunc = &LFO::setHigh;
+  setHigh.cb.bound.memberFn = &LFO::setHigh;
   Callback setLow;
   setLow.type = CallbackType::MEMBER_FUNCTION;
   setLow.cb.bound.obj = this;
-  setLow.cb.bound.mfunc = &LFO::setLow;
+  setLow.cb.bound.memberFn = &LFO::setLow;
   rangeSwitch.setup(rangeSwitchPin, false, false, setHigh, setLow);
   this->_setRange(digitalRead(rangeSwitchPin) == HIGH);
   
   Callback toggleWave;
   toggleWave.type = CallbackType::MEMBER_FUNCTION;
   toggleWave.cb.bound.obj = this;
-  toggleWave.cb.bound.mfunc = &LFO::toggleWave;
+  toggleWave.cb.bound.memberFn = &LFO::toggleWave;
   waveSwitch.setup(waveSwitchPin, false, false, toggleWave, toggleWave);
   triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
   lastTriangleWaveSelected = triangleWaveSelected;
@@ -91,18 +91,6 @@ void LFO::update() {
     this->writeCycle(true);
   }
 
-  // start reset pulse
-  if (lastRising != rising && rising) {
-    digitalWrite(resetPulsePin, HIGH);
-    resetting = true;
-    resetTime = micros();
-  }
-  // cancel reset pulse
-  if (resetting && micros() - resetTime > resetPulseDuration) {
-    digitalWrite(resetPulsePin, LOW);
-    resetting = false;
-  }
-
   lastPeriod = period;
   lastDutyCycle = dutyCycle;
   lastClockSelected = clockSelected;
@@ -113,21 +101,20 @@ void LFO::update() {
 
 // set DAC output
 void LFO::_write(float targetVpp) {
+  // triangle wave (pulse wave that is fed to analog integrator)
   int halfDac = DAC_RESOLUTION * 0.5;
   int dacValue = halfDac;
-  if (triangleWaveSelected) {
-    // calculate pulse voltage (either top or bottom) that is fed to the integrator
-    float pwm = rising ? dutyCycle : 1.0 - dutyCycle;
-    float V = rising ? targetVpp : -targetVpp;
-    float C = highRange ? highC : lowC;
-    float freq = 1 / ((float)period * 1.0e-6);
-    float voltage = V * R * C * freq / pwm;
-    dacValue += voltage * 0.2 * DAC_RESOLUTION;
-  } else {
-    // 1Vpp square wave
-    dacValue += DAC_RESOLUTION * 0.1 * (rising ? 1 : -1);
-  }
+  // calculate pulse voltage (either top or bottom) that is fed to the integrator
+  float pwm = rising ? dutyCycle : 1.0 - dutyCycle;
+  float V = rising ? targetVpp : -targetVpp;
+  float C = highRange ? highC : lowC;
+  float freq = 1 / ((float)period * 1.0e-6);
+  float voltage = V * R * C * freq / pwm;
+  dacValue += voltage * 0.2 * DAC_RESOLUTION;
   mcp.setChannelValue(dacChannel, constrain(dacValue, 0, DAC_RESOLUTION));
+
+  // pulse wave
+  digitalWrite(squareOutPin, rising ? HIGH : LOW);
 }
 
 bool LFO::timerCallback(void *arg) {
@@ -155,9 +142,9 @@ void LFO::writeCycle(bool updatePeriod) {
     timer.cancel();
     long lastCyclePeriod = lastPeriod * duty;
     float percentLeft = (float)ticksLeft / (float)lastCyclePeriod;
-    bool alreadyGoneTooFar = lastCyclePeriod - ticksLeft > cyclePeriod;
 
-    if (alreadyGoneTooFar) {
+    // if the current distance traveled is already longer than the new cycle period, switch direction
+    if (lastCyclePeriod - ticksLeft > cyclePeriod) {
       rising = !rising;
       timerPeriod = period * this->_currentDuty();
       targetVpp *= 1.0 - percentLeft;
