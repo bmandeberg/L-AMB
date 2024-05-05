@@ -14,21 +14,12 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePi
   pinMode(squareOutPin, OUTPUT);
   digitalWrite(squareOutPin, LOW);
 
-  Callback setHigh;
-  setHigh.type = CallbackType::MEMBER_FUNCTION;
-  setHigh.cb.bound.obj = this;
-  setHigh.cb.bound.memberFn = &LFO::setHigh;
-  Callback setLow;
-  setLow.type = CallbackType::MEMBER_FUNCTION;
-  setLow.cb.bound.obj = this;
-  setLow.cb.bound.memberFn = &LFO::setLow;
+  Callback setHigh(&LFO::setHigh, this);
+  Callback setLow(&LFO::setLow, this);
   rangeSwitch.setup(rangeSwitchPin, false, false, setHigh, setLow);
   this->_setRange(digitalRead(rangeSwitchPin) == HIGH);
   
-  Callback toggleWave;
-  toggleWave.type = CallbackType::MEMBER_FUNCTION;
-  toggleWave.cb.bound.obj = this;
-  toggleWave.cb.bound.memberFn = &LFO::toggleWave;
+  Callback toggleWave(&LFO::toggleWave, this);
   waveSwitch.setup(waveSwitchPin, false, false, toggleWave, toggleWave);
   triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
 }

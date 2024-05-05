@@ -41,9 +41,7 @@ void setup() {
   // pinMode(led3Pin, OUTPUT);
   // pinMode(led4Pin, OUTPUT);
 
-  Callback toggleClockCallback;
-  toggleClockCallback.type = CallbackType::FUNCTION;
-  toggleClockCallback.cb.fn = toggleClockSelected;
+  Callback toggleClockCallback(toggleClockSelected);
   clockSelectSwitch.setup(clockSelectPin, false, true, toggleClockCallback, toggleClockCallback);
 
   pinMode(clockInPin, INPUT);
