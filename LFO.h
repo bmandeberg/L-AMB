@@ -3,9 +3,9 @@
 
 #include "Switch.h"
 #include "L-AMB.h"
-#include <arduino-timer.h>
 
-const int ADC_RESOLUTION = pow(2, 10) - 1;
+const long scalingFactor = 100000;
+const long scaledDacResolution = DAC_RESOLUTION * scalingFactor;
 const float R = 47000.0;
 const float lowC = 1.0e-6; // 1uF
 const float highC = 1.2e-9; // 1.2nF
@@ -13,51 +13,56 @@ const long lowSlowestPeriod = 20000000; // 0.05 Hz
 const long lowFastestPeriod = 200000; // 5 Hz
 const long highSlowestPeriod = 20000; // 50 Hz
 const long highFastestPeriod = 250; // 4000 Hz
-const long resetPulseDuration = 28;
+const long crossoverPeriod = (lowFastestPeriod - highSlowestPeriod) / 2;
+const int minDutyCycle = ADC_RESOLUTION / 10;
+const int maxDutyCycle = ADC_RESOLUTION * 9 / 10;
+// int minDutyCycle = 0;
+// int maxDutyCycle = ADC_RESOLUTION;
 
 class LFO {
 
   public:
-    static LFO* instance; // instance pointer for binding to Timer.in
-    static bool timerCallback(void* arg);
-    void writeCycle(bool updatePeriod);
-    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int squarePinOut, int dacChan);
+    int getValue();
     void update();
-    float currentValue();
+    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int squarePinOut, int dacChan);
+    void tick();
+    void check();
     void setHigh();
     void setLow();
     void toggleWave();
 
   private:
     long period;
-    float dutyCycle;
-    bool rising = false;
+    int dutyCycle;
+    volatile long currentValue;
+    long currentValueCopy;
+    volatile long periodIncrement;
+    long periodIncrementCopy;
+    volatile bool rising = false;
+    bool risingCopy = false;
     bool lastRising = false;
     int dacChannel;
     int freqInPin;
     int dutyInPin;
     int waveSwitchPin;
     bool triangleWaveSelected = false;
-    bool lastTriangleWaveSelected = false;
     int rangeSwitchPin;
     int rangeOutPin;
     int squareOutPin;
     bool highRange = false;
     long lastPeriod;
-    float lastDutyCycle;
+    int lastDutyCycle;
     bool lastClockSelected;
     bool resetting = false;
     long resetTime;
-    Timer<1, micros> timer;
     Switch waveSwitch;
     Switch rangeSwitch;
-    void _write(float targetVpp);
+    void _writePulseForTriangle();
     void _setTimer(long delay);
     bool _usingClockIn();
     void _setRange(bool rangeHigh);
-    float _currentDuty();
+    int _currentDuty();
+    long _calculatePeriodIncrement();
 };
-
-float floatMap(float x, float in_min, float in_max, float out_min, float out_max);
 
 #endif // LFO_H

@@ -1,7 +1,6 @@
 #include "LFO.h"
 #include "Arduino.h"
-
-LFO* LFO::instance = nullptr;
+#include <limits.h>
 
 void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int squarePinOut, int dacChan) {
   freqInPin = freqPin;
@@ -32,24 +31,28 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePi
   toggleWave.cb.bound.memberFn = &LFO::toggleWave;
   waveSwitch.setup(waveSwitchPin, false, false, toggleWave, toggleWave);
   triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
-  lastTriangleWaveSelected = triangleWaveSelected;
 }
 
-void LFO::update() {
+void LFO::tick() {
+  currentValue += rising ? periodIncrement : -periodIncrement;
+  if (currentValue >= scaledDacResolution) {
+    currentValue = scaledDacResolution - (currentValue - scaledDacResolution);
+    rising = false;
+  } else if (currentValue <= 0) {
+    currentValue = -currentValue;
+    rising = true;
+  }
+}
+
+void LFO::check() {
   rangeSwitch.check();
   waveSwitch.check();
-
-  // reset automatic range selection if clock input is removed
-  if (lastClockSelected != clockSelected && !this->_usingClockIn()) {
-    this->_setRange(digitalRead(rangeSwitchPin) == HIGH);
-  }
   
   // set LFO period
   int freq = analogRead(freqInPin);
   // if using external clock input
   if (this->_usingClockIn()) {
-    // automatically update range based on clock frequency
-    long crossoverPeriod = (lowFastestPeriod - highSlowestPeriod) * 0.5;
+    // automatically check range based on clock frequency
     if (clockPeriod > crossoverPeriod && highRange) {
       this->_setRange(false);
     } else if (clockPeriod < crossoverPeriod && !highRange) {
@@ -72,7 +75,7 @@ void LFO::update() {
       optionIndex++;
     }
     int coefficient = options[knobIndex];
-    period = freq < ADC_RESOLUTION * 0.5 ? clockPeriod * coefficient : clockPeriod / coefficient;
+    period = freq < ADC_RESOLUTION / 2 ? clockPeriod * coefficient : clockPeriod / coefficient;
   } else {
     // set LFO period based on frequency knob
     long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
@@ -81,83 +84,57 @@ void LFO::update() {
   }
 
   // set LFO duty cycle
-  float minDutyCycle = 0.1;
-  float maxDutyCycle = 0.9;
-  float mappedDutyCycle = floatMap((float)analogRead(dutyInPin), 0.0, (float)ADC_RESOLUTION, minDutyCycle, maxDutyCycle);
+  int mappedDutyCycle = map(analogRead(dutyInPin), 0, ADC_RESOLUTION, minDutyCycle, maxDutyCycle);
   dutyCycle = constrain(mappedDutyCycle, minDutyCycle, maxDutyCycle);
 
-  // schedule DAC update if necessary
-  if (period != lastPeriod || dutyCycle != lastDutyCycle || triangleWaveSelected != lastTriangleWaveSelected) {
-    this->writeCycle(true);
+  // TODO: remove this test code
+  period = 1000000;
+  dutyCycle = ADC_RESOLUTION / 2;
+}
+
+void LFO::update() {
+  noInterrupts();
+  risingCopy = rising;
+  currentValueCopy = currentValue;
+  interrupts();
+
+  // reset automatic range selection if clock input is removed
+  if (lastClockSelected != clockSelected && !this->_usingClockIn()) {
+    this->_setRange(digitalRead(rangeSwitchPin) == HIGH);
   }
+  
+  // if anything has changed, update the periodIncrement and triangle value
+  if (period != lastPeriod || dutyCycle != lastDutyCycle || risingCopy != lastRising) {
+    periodIncrementCopy = this->_calculatePeriodIncrement();
+    this->_writePulseForTriangle();
+  }
+
+  if (risingCopy != lastRising) {
+    digitalWrite(squareOutPin, risingCopy ? HIGH : LOW);
+  }
+
+  noInterrupts();
+  periodIncrement = periodIncrementCopy;
+  interrupts();
 
   lastPeriod = period;
   lastDutyCycle = dutyCycle;
   lastClockSelected = clockSelected;
-  lastTriangleWaveSelected = triangleWaveSelected;
-  lastRising = rising;
-  timer.tick();
+  lastRising = risingCopy;
 }
 
-// set DAC output
-void LFO::_write(float targetVpp) {
-  // triangle wave (pulse wave that is fed to analog integrator)
-  int halfDac = DAC_RESOLUTION * 0.5;
+// calculate either Vtop or Vbottom of pulse wave that hits an integrator to create the variable-duty-cycle triangle wave
+void LFO::_writePulseForTriangle() {
+  float targetVpp = 1.0;
+  int halfDac = DAC_RESOLUTION / 2;
   int dacValue = halfDac;
-  // calculate pulse voltage (either top or bottom) that is fed to the integrator
-  float pwm = rising ? dutyCycle : 1.0 - dutyCycle;
-  float V = rising ? targetVpp : -targetVpp;
+  float V = risingCopy ? targetVpp : -targetVpp;
   float C = highRange ? highC : lowC;
   float freq = 1 / ((float)period * 1.0e-6);
-  float voltage = V * R * C * freq / pwm;
+  float duty = constrain(this->_currentDuty() / (float)ADC_RESOLUTION, 0.1, 0.9);
+  float voltage = V * R * C * freq / duty;
   dacValue += voltage * 0.2 * DAC_RESOLUTION;
   mcp.setChannelValue(dacChannel, constrain(dacValue, 0, DAC_RESOLUTION));
-
-  // pulse wave
-  digitalWrite(squareOutPin, rising ? HIGH : LOW);
-}
-
-bool LFO::timerCallback(void *arg) {
-  if (instance) {
-    instance->writeCycle(false);
-  }
-  return false;
-}
-
-void LFO::_setTimer(long delay) {
-  instance = this;
-  timer.in(delay, timerCallback);
-}
-
-// one "cycle" is either the duty cycle or the inverse of the duty cycle (either rising or falling part of the wave)
-void LFO::writeCycle(bool updatePeriod) {
-  float targetVpp = 1.0;
-  float duty = this->_currentDuty();
-  long cyclePeriod = period * duty;
-  long timerPeriod = cyclePeriod;
-
-  // cancel and restart scheduled DAC update if period changes
-  if (updatePeriod) {
-    auto ticksLeft = timer.ticks();
-    timer.cancel();
-    long lastCyclePeriod = lastPeriod * duty;
-    float percentLeft = (float)ticksLeft / (float)lastCyclePeriod;
-
-    // if the current distance traveled is already longer than the new cycle period, switch direction
-    if (lastCyclePeriod - ticksLeft > cyclePeriod) {
-      rising = !rising;
-      timerPeriod = period * this->_currentDuty();
-      targetVpp *= 1.0 - percentLeft;
-    } else {
-      timerPeriod = cyclePeriod * percentLeft;
-    }
-  } else {
-    rising = !rising;
-    timerPeriod = period * this->_currentDuty();
-  }
-
-  this->_setTimer(timerPeriod);
-  this->_write(targetVpp);
 }
 
 bool LFO::_usingClockIn() {
@@ -169,20 +146,30 @@ void LFO::_setRange(bool rangeHigh) {
   digitalWrite(rangeOutPin, rangeHigh ? HIGH : LOW);
 }
 
-float LFO::_currentDuty() {
-  return rising ? dutyCycle : 1 - dutyCycle;
+// current duty cycle, scaled to the ADC resolution
+int LFO::_currentDuty() {
+  return risingCopy ? dutyCycle : ADC_RESOLUTION - dutyCycle;
 }
 
-// current normalized value of the LFO
-float LFO::currentValue() {
+// current value of the LFO, scaled to the DAC resolution
+int LFO::getValue() {
   if (!triangleWaveSelected) {
-    return rising ? 1.0 : 0.0;
+    // pulse
+    return risingCopy ? DAC_RESOLUTION : 0;
   } else {
-    auto ticksLeft = timer.ticks();
-    long cyclePeriod = period * this->_currentDuty();
-    float percentLeft = (float)ticksLeft / (float)cyclePeriod;
-    return rising ? 1.0 - percentLeft : percentLeft;
+    // triangle
+    int currentValueDescaled = currentValueCopy / scalingFactor;
+    return constrain(currentValueDescaled, 0, DAC_RESOLUTION);
   }
+}
+
+long LFO::_calculatePeriodIncrement() {
+  int duty = this->_currentDuty();
+  // make sure period * duty doesn't overflow
+  long dutyPeriod = duty && period > LONG_MAX / duty ?
+    period / ADC_RESOLUTION * duty :
+    period * duty / ADC_RESOLUTION;
+  return scaledDacResolution / max(dutyPeriod / clockResolution, 1);
 }
 
 void LFO::setHigh() {
@@ -199,8 +186,4 @@ void LFO::setLow() {
 
 void LFO::toggleWave() {
   triangleWaveSelected = !triangleWaveSelected;
-}
-
-float floatMap(float x, float in_min, float in_max, float out_min, float out_max) {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
