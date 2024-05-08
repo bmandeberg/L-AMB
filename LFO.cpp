@@ -2,17 +2,27 @@
 #include "Arduino.h"
 #include <limits.h>
 
-void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int squarePinOut, int dacChan) {
+void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int squarePinOut) {
   freqInPin = freqPin;
   dutyInPin = dutyPin;
   waveSwitchPin = wavePin;
   rangeSwitchPin = rangePin;
   rangeOutPin = rangePinOut;
   squareOutPin = squarePinOut;
-  dacChannel = dacChan;
   pinMode(rangeOutPin, OUTPUT);
   pinMode(squareOutPin, OUTPUT);
   digitalWrite(squareOutPin, LOW);
+
+  switch (squareOutPin) {
+    case 8:
+      port = PORTB;
+      bit = 4;
+      break;
+    case 13:
+      port = PORTC;
+      bit = 7;
+      break;
+  }
 
   Callback setHigh(&LFO::setHigh, this);
   Callback setLow(&LFO::setLow, this);
@@ -21,7 +31,9 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePi
   
   Callback toggleWave(&LFO::toggleWave, this);
   waveSwitch.setup(waveSwitchPin, false, false, toggleWave, toggleWave);
-  triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
+  // triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
+  // TODO: remove this test code
+  triangleWaveSelected = true;
 }
 
 void LFO::tick() {
@@ -75,7 +87,8 @@ void LFO::check() {
   }
 
   // set LFO duty cycle
-  int mappedDutyCycle = map(analogRead(dutyInPin), 0, ADC_RESOLUTION, minDutyCycle, maxDutyCycle);
+  int dutyRead = analogRead(dutyInPin);
+  int mappedDutyCycle = map(dutyRead, 0, ADC_RESOLUTION, minDutyCycle, maxDutyCycle);
   dutyCycle = constrain(mappedDutyCycle, minDutyCycle, maxDutyCycle);
 
   // TODO: remove this test code
@@ -83,7 +96,8 @@ void LFO::check() {
   dutyCycle = ADC_RESOLUTION / 2;
 }
 
-void LFO::update() {
+int LFO::update() {
+  int dacValue = lastDacValue;
   noInterrupts();
   risingCopy = rising;
   currentValueCopy = currentValue;
@@ -97,11 +111,27 @@ void LFO::update() {
   // if anything has changed, update the periodIncrement and triangle value
   if (period != lastPeriod || dutyCycle != lastDutyCycle || risingCopy != lastRising) {
     periodIncrementCopy = this->_calculatePeriodIncrement();
-    this->_writePulseForTriangle();
+    if (!ALL_DIGITAL) {
+      dacValue = this->_getPulseForTriangle();
+    }
   }
 
-  if (risingCopy != lastRising) {
-    digitalWrite(squareOutPin, risingCopy ? HIGH : LOW);
+  if (ALL_DIGITAL) {
+    if (triangleWaveSelected) {
+      // triangle
+      int currentValueDescaled = currentValueCopy / scalingFactor;
+      dacValue = constrain(currentValueDescaled, 0, DAC_RESOLUTION);
+    } else if (risingCopy != lastRising) {
+      // pulse
+      dacValue = risingCopy ? DAC_RESOLUTION : 0;
+    }
+  } else if (risingCopy != lastRising) {
+    // update direct pulse wave output
+    if (risingCopy) {
+      port |= 1 << bit;
+    } else {
+      port &= ~(1 << bit);
+    }
   }
 
   noInterrupts();
@@ -112,10 +142,13 @@ void LFO::update() {
   lastDutyCycle = dutyCycle;
   lastClockSelected = clockSelected;
   lastRising = risingCopy;
+  lastDacValue = dacValue;
+
+  return dacValue;
 }
 
 // calculate either Vtop or Vbottom of pulse wave that hits an integrator to create the variable-duty-cycle triangle wave
-void LFO::_writePulseForTriangle() {
+int LFO::_getPulseForTriangle() {
   float targetVpp = 1.0;
   int halfDac = DAC_RESOLUTION / 2;
   int dacValue = halfDac;
@@ -125,7 +158,7 @@ void LFO::_writePulseForTriangle() {
   float duty = constrain(this->_currentDuty() / (float)ADC_RESOLUTION, 0.1, 0.9);
   float voltage = V * R * C * freq / duty;
   dacValue += voltage * 0.2 * DAC_RESOLUTION;
-  mcp.setChannelValue(dacChannel, constrain(dacValue, 0, DAC_RESOLUTION));
+  return constrain(dacValue, 0, DAC_RESOLUTION);
 }
 
 bool LFO::_usingClockIn() {
@@ -160,7 +193,8 @@ long LFO::_calculatePeriodIncrement() {
   long dutyPeriod = duty && period > LONG_MAX / duty ?
     period / ADC_RESOLUTION * duty :
     period * duty / ADC_RESOLUTION;
-  return scaledDacResolution / max(dutyPeriod / clockResolution, 1);
+  long dutyPeriodIncrement = dutyPeriod / clockResolution;
+  return scaledDacResolution / max(dutyPeriodIncrement, 1);
 }
 
 void LFO::setHigh() {

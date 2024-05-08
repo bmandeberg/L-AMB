@@ -23,8 +23,8 @@ class LFO {
 
   public:
     int getValue();
-    void update();
-    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int squarePinOut, int dacChan);
+    int update();
+    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int rangePinOut, int squarePinOut);
     void tick();
     void check();
     void setHigh();
@@ -41,7 +41,6 @@ class LFO {
     volatile bool rising = false;
     bool risingCopy = false;
     bool lastRising = false;
-    int dacChannel;
     int freqInPin;
     int dutyInPin;
     int waveSwitchPin;
@@ -49,15 +48,18 @@ class LFO {
     int rangeSwitchPin;
     int rangeOutPin;
     int squareOutPin;
+    volatile uint8_t &port = PORTB;
+    uint8_t bit = 4;
     bool highRange = false;
     long lastPeriod;
     int lastDutyCycle;
     bool lastClockSelected;
     bool resetting = false;
     long resetTime;
+    int lastDacValue = 0;
     Switch waveSwitch;
     Switch rangeSwitch;
-    void _writePulseForTriangle();
+    int _getPulseForTriangle();
     void _setTimer(long delay);
     bool _usingClockIn();
     void _setRange(bool rangeHigh);

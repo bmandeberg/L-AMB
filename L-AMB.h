@@ -3,6 +3,8 @@
 
 #include <Adafruit_MCP4728.h>
 
+extern boolean ALL_DIGITAL;
+
 extern Adafruit_MCP4728 mcp;
 extern const int DAC_RESOLUTION;
 extern const int ADC_RESOLUTION;

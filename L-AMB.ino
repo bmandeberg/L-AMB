@@ -2,6 +2,9 @@
 #include "Switch.h"
 #include "LFO.h"
 #include <arduino-timer.h>
+#include <Wire.h>
+
+boolean ALL_DIGITAL = false;
 
 Adafruit_MCP4728 mcp;
 const int DAC_RESOLUTION = 4095;
@@ -34,6 +37,7 @@ void toggleClockSelected() {
 
 void setup() {
   mcp.begin();
+  Wire.setClock(400000);
   Serial.begin(9600);
 
   pinMode(led1Pin, OUTPUT);
@@ -47,21 +51,24 @@ void setup() {
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
-  lfo1.setup(A0, A1, 15, 16, 14, 8, MCP4728_CHANNEL_A);
-  // lfo2.setup(A2, A3, 6, 4, 0, 1, MCP4728_CHANNEL_B);
+  lfo1.setup(A0, A1, 15, 16, 14, 8);
+  lfo2.setup(A2, A3, 6, 4, led3Pin, led4Pin);
+  // lfo2.setup(A2, A3, 6, 4, 0, 1);
   // TODO: access extra pins on the 32u4! Can't use lfo3 until that happens
-  // lfo3.setup(A4, A5, 5, PE2, PB0, PD5, MCP4728_CHANNEL_C);
+  // lfo3.setup(A4, A5, 5, PE2, PB0, PD5);
 }
 
 long time = 0;
 
 void loop() {
   clockSelectSwitch.check();
+
   time = micros();
   checkLFOs();
   Serial.println(micros() - time);
-  updateLEDs();
   delay(1000);
+
+  updateLEDs();
 }
 
 void updateClockPeriod() {
@@ -69,6 +76,34 @@ void updateClockPeriod() {
     clockPeriod = micros() - lastClockTime;
   }
   lastClockTime = micros();
+}
+
+// check input at a rate of 1ms
+void checkLFOs() {
+  lfo1.check();
+  lfo2.check();
+  // lfo3.check();
+}
+
+// tick LFOs within the ISR
+void tickLFOs() {
+  lfo1.tick();
+  lfo2.tick();
+  // lfo3.tick();
+}
+
+// write LFOs to the DAC
+void updateLFOs() {
+  int lfo1Value = lfo1.update();
+  // int lfo2Value = 0;
+  int lfo2Value = lfo2.update();
+  mcp.fastWrite(lfo1Value, lfo2Value, 0, 0);
+  // lfo2.update();
+  // lfo3.update();
+}
+
+long scaleFromDACtoPWM(long value) {
+  return value * PWM_RESOLUTION / DAC_RESOLUTION;
 }
 
 void updateLEDs() {
@@ -86,29 +121,4 @@ void updateLEDs() {
   analogWrite(led2Pin, scaleFromDACtoPWM(inverseLfo1Value));
   // analogWrite(led3Pin, scaleFromDACtoPWM(inverseLfo2Value));
   // analogWrite(led4Pin, scaleFromDACtoPWM(inverseLfo3Value));
-}
-
-int scaleFromDACtoPWM(int value) {
-  return value * PWM_RESOLUTION / DAC_RESOLUTION;
-}
-
-// check input at a rate of 1ms
-void checkLFOs() {
-  lfo1.check();
-  // lfo2.check();
-  // lfo3.check();
-}
-
-// tick LFOs within the ISR
-void tickLFOs() {
-  lfo1.tick();
-  // lfo2.tick();
-  // lfo3.tick();
-}
-
-// write LFOs to the DAC
-void updateLFOs() {
-  lfo1.update();
-  // lfo2.update();
-  // lfo3.update();
 }
