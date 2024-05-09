@@ -44,29 +44,32 @@ void LFO::tick() {
   lastRising = rising;
 }
 
-void LFO::check() {
+void LFO::check(bool usingClockIn) {
   rangeSwitch.check();
   waveSwitch.check();
   
-  // set LFO period
   int freq = analogRead(freqInPin);
-  // if using external clock input
-  if (usingClockIn() && clockPeriod != lastClockPeriod) {
-    // freq knob sweeps from divide by 9 to multiply by 9 of clock frequency
-    int coefficient = clockDivMultOptions[freq / knobRange];
-    period = freq <= ADC_RES / 2 ? clockPeriod * coefficient : clockPeriod / coefficient;
-  } else {
-    // set LFO period based on frequency knob
-    long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
-    long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
-    period = map(freq, 0, ADC_RES, slowestPeriod, fastestPeriod);
-  }
-
-  // set LFO duty cycle
   int dutyCycle = analogRead(dutyInPin);
 
-  // if anything has changed, update the periodIncrement and triangle value
-  if (period != lastPeriod || dutyCycle != lastDutyCycle) {
+  bool updatePeriod = lastFreq != freq || lastUsingClockIn != usingClockIn;
+  // bool updatePeriod = true;
+  if (updatePeriod) {
+    // if using external clock input
+    if (usingClockIn) {
+      // freq knob sweeps from divide by 9 to multiply by 9 of clock frequency
+      int coefficient = clockDivMultOptions[freq / knobRange];
+      long newPeriod = freq <= ADC_RES / 2 ? clockPeriod * coefficient : clockPeriod / coefficient;
+      period = constrain(newPeriod, highFastestPeriod, lowSlowestPeriod);
+    } else {
+      // set LFO period based on frequency knob
+      long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
+      long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
+      period = map(freq, 0, ADC_RES, slowestPeriod, fastestPeriod);
+    }
+  }
+
+  // if anything has changed, update the periodIncrement
+  if (updatePeriod || dutyCycle != lastDutyCycle) {
     int duty = rising ? dutyCycle : ADC_RES - dutyCycle;
     // make sure period * duty doesn't overflow
     long dutyPeriod = duty && period > LONG_MAX / duty ?
@@ -83,16 +86,12 @@ void LFO::check() {
     interrupts();
   }
 
-  lastPeriod = period;
   lastDutyCycle = dutyCycle;
+  lastFreq = freq;
 
   // TODO: remove this test code
   period = 1000000;
   dutyCycle = ADC_RES / 2;
-}
-
-bool LFO::usingClockIn() {
-  return clockSelected && clockPeriod > minClockPeriod;
 }
 
 void LFO::setHigh() {

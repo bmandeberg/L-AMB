@@ -9,7 +9,6 @@ const int clockInPin = 1;
 const int clockSelectPin = 5;
 bool clockSelected = false;
 volatile long clockPeriod = 0;
-long lastClockPeriod = 0;
 volatile long lastClockTime = 0;
 const long minClockPeriod = 250;
 const long clockResolution = 25;
@@ -17,6 +16,7 @@ const int maxDivMult = 9;
 const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
 int clockDivMultOptions[numOptions];
+bool lastUsingClockIn = false;
 
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
@@ -71,10 +71,12 @@ void updateClockPeriod() {
 
 // check LFO inputs
 void checkLFOs() {
-  lfo1.check();
-  lfo2.check();
-  // lfo3.check();
-  lastClockPeriod = clockPeriod;
+  bool usingClockIn = clockSelected && clockPeriod > minClockPeriod;
+  lfo1.check(usingClockIn);
+  lfo2.check(usingClockIn);
+  // lfo3.check(usingClockIn);
+
+  lastUsingClockIn = usingClockIn;
 }
 
 // tick LFOs within the ISR
@@ -95,4 +97,8 @@ void initializeClockDivMultOptions() {
     clockDivMultOptions[optionIndex] = i;
     optionIndex++;
   }
+}
+
+bool usingClockIn() {
+  return clockSelected && clockPeriod > minClockPeriod;
 }

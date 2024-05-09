@@ -7,11 +7,13 @@ extern const int clockInPin;
 extern const int clockSelectPin;
 extern bool clockSelected;
 extern volatile long clockPeriod;
-extern long lastClockPeriod;
 extern volatile long lastClockTime;
 extern const long minClockPeriod;
 extern const long clockResolution;
-extern int clockDivMultOptions[];
 extern const int knobRange;
+extern int clockDivMultOptions[];
+extern bool lastUsingClockIn;
+
+bool usingClockIn();
 
 #endif // LAMB_H
