@@ -1,8 +1,26 @@
-#include "LFO.h"
-#include "Arduino.h"
+#include <Arduino.h>
 #include <limits.h>
+#include "LFO.h"
 
-void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
+void LFO::setupDAC(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChannel) {
+  init(freqPin, dutyPin, wavePin, rangePin);
+
+  // setup DAC through DMA
+  dma.setTrigger(TC3_DMAC_ID_OVF);
+  dma.setAction(DMA_TRIGGER_ACTON_BEAT);
+  dma.allocate();
+  dma.addDescriptor((void *)&dacValue, (void *)&DAC->DATA[dacChannel].reg, 1, DMA_BEAT_SIZE_HWORD, true, false);
+  dma.loop(true);
+  dma.startJob();
+}
+
+void LFO::setupI2C(int freqPin, int dutyPin, int wavePin, int rangePin) {
+  init(freqPin, dutyPin, wavePin, rangePin);
+
+
+}
+
+void LFO::init(int freqPin, int dutyPin, int wavePin, int rangePin) {
   freqInPin = freqPin;
   dutyInPin = dutyPin;
   waveSwitchPin = wavePin;

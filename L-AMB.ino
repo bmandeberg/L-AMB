@@ -1,8 +1,10 @@
 #include <Arduino.h>
+#include <Adafruit_ZeroTimer.h>
 #include "L-AMB.h"
 #include "Switch.h"
 #include "LFO.h"
-#include "Adafruit_ZeroTimer.h"
+
+#define TIMER_NUM 3
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
@@ -22,9 +24,9 @@ bool lastUsingClockIn = false;
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
 
-Adafruit_ZeroTimer zt5 = Adafruit_ZeroTimer(5);
-void TC5_Handler(){
-  Adafruit_ZeroTimer::timerHandler(5);
+Adafruit_ZeroTimer zt3 = Adafruit_ZeroTimer(TIMER_NUM);
+void TC3_Handler(){
+  Adafruit_ZeroTimer::timerHandler(TIMER_NUM);
 }
 
 // tick LFOs within the ISR
@@ -52,10 +54,10 @@ void setup() {
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
-  lfo1.setup(A2, A3, 24, 25);
-  lfo2.setup(A4, A5, 23, 3);
+  lfo1.setupDAC(A2, A3, 24, 25, 0);
+  lfo2.setupDAC(A4, A5, 23, 3, 1);
   // TODO: access extra pins! Can't use lfo3 until that happens, need extra analog in
-  // lfo3.setup(A6, A7, 4, 0);
+  // lfo3.setupI2C(A6, A7, 4, 0);
 
   // initialize DAC
   analogWriteResolution(12);
@@ -63,10 +65,10 @@ void setup() {
   analogWrite(A1, DAC_RES / 2);
 
   // setup main clock for ticking LFOs
-  zt5.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
-  zt5.setCompare(0, clockResolution * 120);
-  zt5.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
-  zt5.enable(true);
+  zt3.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
+  zt3.setCompare(0, clockResolution * 120);
+  zt3.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
+  zt3.enable(true);
 }
 
 long time = 0;
