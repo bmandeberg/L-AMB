@@ -1,7 +1,6 @@
 #include "L-AMB.h"
 #include "Switch.h"
 #include "LFO.h"
-#include <Wire.h>
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
@@ -13,7 +12,7 @@ volatile long lastClockTime = 0;
 const long minClockPeriod = 250;
 const long clockResolution = 25;
 const int maxDivMult = 9;
-const int numOptions = (maxDivMult - 1) * 2 + 1;
+static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
 int clockDivMultOptions[numOptions];
 bool lastUsingClockIn = false;
@@ -30,7 +29,6 @@ void toggleClockSelected() {
 }
 
 void setup() {
-  Wire.setClock(400000);
   Serial.begin(9600);
   initializeClockDivMultOptions();
 
