@@ -1,6 +1,8 @@
+#include <Arduino.h>
 #include "L-AMB.h"
 #include "Switch.h"
 #include "LFO.h"
+#include "Adafruit_ZeroTimer.h"
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
@@ -19,6 +21,18 @@ bool lastUsingClockIn = false;
 
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
+
+Adafruit_ZeroTimer zt5 = Adafruit_ZeroTimer(5);
+void TC5_Handler(){
+  Adafruit_ZeroTimer::timerHandler(5);
+}
+
+// tick LFOs within the ISR
+void tickLFOs() {
+  lfo1.tick();
+  lfo2.tick();
+  // lfo3.tick();
+}
 
 void toggleClockSelected() {
   clockSelected = !clockSelected;
@@ -43,9 +57,16 @@ void setup() {
   // TODO: access extra pins! Can't use lfo3 until that happens, need extra analog in
   // lfo3.setup(A6, A7, 4, 0);
 
+  // initialize DAC
   analogWriteResolution(12);
   analogWrite(A0, DAC_RES / 2);
   analogWrite(A1, DAC_RES / 2);
+
+  // setup main clock for ticking LFOs
+  zt5.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
+  zt5.setCompare(0, clockResolution * 120);
+  zt5.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
+  zt5.enable(true);
 }
 
 long time = 0;
@@ -75,13 +96,6 @@ void checkLFOs() {
   // lfo3.check(usingClockIn);
 
   lastUsingClockIn = usingClockIn;
-}
-
-// tick LFOs within the ISR
-void tickLFOs() {
-  lfo1.tick();
-  lfo2.tick();
-  // lfo3.tick();
 }
 
 void initializeClockDivMultOptions() {

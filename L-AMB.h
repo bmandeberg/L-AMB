@@ -9,7 +9,7 @@ extern bool clockSelected;
 extern volatile long clockPeriod;
 extern volatile long lastClockTime;
 extern const long minClockPeriod;
-extern const long clockResolution;
+extern const long clockResolution; // in microseconds
 extern const int knobRange;
 extern int clockDivMultOptions[];
 extern bool lastUsingClockIn;
