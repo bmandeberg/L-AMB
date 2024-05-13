@@ -15,7 +15,7 @@ class LFO {
 
   public:
     void setup(int freqPin, int dutyPin, int wavePin, int rangePin);
-    void tick();
+    int tickDacVal();
     void check(bool usingClockIn);
     void setHigh();
     void setLow();
@@ -25,12 +25,10 @@ class LFO {
     long period;
     int dutyCycle;
     int lastFreq;
-    volatile int dacValue;
     volatile long currentValue;
     volatile long periodIncrement[2]; // 0: pulse high, 1: pulse low
     long periodIncrementCopy[2];
     volatile bool rising = false;
-    volatile bool lastRising = false;
     int freqInPin;
     int dutyInPin;
     int waveSwitchPin;

@@ -20,7 +20,7 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
   triangleWaveSelected = true;
 }
 
-void LFO::tick() {
+int LFO::tickDacVal() {
   // progress the wave
   currentValue += rising ? periodIncrement[0] : -periodIncrement[1];
   if (currentValue >= scaledDacResolution) {
@@ -32,16 +32,10 @@ void LFO::tick() {
   }
 
   // update the DAC value
-  if (triangleWaveSelected) {
-    // triangle
-    int currentValueDescaled = currentValue >> scalingFactor;
-    dacValue = constrain(currentValueDescaled, 0, DAC_RES);
-  } else if (rising != lastRising) {
-    // pulse
-    dacValue = rising ? DAC_RES : 0;
-  }
-
-  lastRising = rising;
+  int currentValueDescaled = currentValue >> scalingFactor;
+  return triangleWaveSelected ?
+    constrain(currentValueDescaled, 0, DAC_RES) :
+    rising ? DAC_RES : 0;
 }
 
 void LFO::check(bool usingClockIn) {

@@ -1,8 +1,11 @@
 #include <Arduino.h>
+#include <I2C_DMAC.h>
 #include "L-AMB.h"
 #include "Switch.h"
 #include "LFO.h"
 #include "Adafruit_ZeroTimer.h"
+
+#define MCP4728_I2CADDR_DEFAULT 0x60
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
@@ -18,6 +21,7 @@ static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
 int clockDivMultOptions[numOptions];
 bool lastUsingClockIn = false;
+uint8_t i2cBuffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
@@ -29,9 +33,11 @@ void TC5_Handler(){
 
 // tick LFOs within the ISR
 void tickLFOs() {
-  lfo1.tick();
-  lfo2.tick();
-  // lfo3.tick();
+  fillBuffer(0, lfo1.tickDacVal());
+  fillBuffer(1, lfo2.tickDacVal());
+  // fillBuffer(2, lfo3.tickDacVal());
+  I2C.write();
+  // while(I2C.writeBusy);
 }
 
 void toggleClockSelected() {
@@ -57,16 +63,15 @@ void setup() {
   // TODO: access extra pins! Can't use lfo3 until that happens, need extra analog in
   // lfo3.setup(A6, A7, 4, 0);
 
-  // initialize DAC
-  analogWriteResolution(12);
-  analogWrite(A0, DAC_RES / 2);
-  analogWrite(A1, DAC_RES / 2);
+  // initialize I2C
+  I2C.begin(400000, REG_ADDR_8BIT, PIO_SERCOM_ALT);
+  I2C.initWriteBytes(MCP4728_I2CADDR_DEFAULT, i2cBuffer, 8);
 
   // setup main clock for ticking LFOs
-  zt5.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
-  zt5.setCompare(0, clockResolution * 120);
-  zt5.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
-  zt5.enable(true);
+  // zt5.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
+  // zt5.setCompare(0, clockResolution * 120);
+  // zt5.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
+  // zt5.enable(true);
 }
 
 long time = 0;
@@ -113,4 +118,10 @@ void initializeClockDivMultOptions() {
 
 bool usingClockIn() {
   return clockSelected && clockPeriod > minClockPeriod;
+}
+
+void fillBuffer(int position, int value) {
+  int index = position * 2;
+  i2cBuffer[index] = value >> 8;
+  i2cBuffer[index + 1] = value & 0xFF;
 }
