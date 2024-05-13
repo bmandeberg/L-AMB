@@ -1,9 +1,9 @@
 #include <Arduino.h>
+#include <Adafruit_ZeroTimer.h>
 #include <I2C_DMAC.h>
 #include "L-AMB.h"
 #include "Switch.h"
 #include "LFO.h"
-#include "Adafruit_ZeroTimer.h"
 
 #define MCP4728_I2CADDR_DEFAULT 0x60
 
@@ -27,7 +27,7 @@ LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
 
 Adafruit_ZeroTimer zt5 = Adafruit_ZeroTimer(5);
-void TC5_Handler(){
+void TC5_Handler() {
   Adafruit_ZeroTimer::timerHandler(5);
 }
 

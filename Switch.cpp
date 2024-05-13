@@ -1,6 +1,6 @@
+#include <Arduino.h>
 #include "L-AMB.h"
 #include "Switch.h"
-#include "Arduino.h"
 
 void Switch::setup(int pinNum, bool invertedRead, bool pullup, Callback engageCallback, Callback disengageCallback) {
   buttonPin = pinNum;

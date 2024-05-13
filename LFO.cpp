@@ -1,6 +1,6 @@
-#include "LFO.h"
-#include "Arduino.h"
+#include <Arduino.h>
 #include <limits.h>
+#include "LFO.h"
 
 void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
   freqInPin = freqPin;
