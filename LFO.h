@@ -14,7 +14,7 @@ static const long highFastestPeriod = 250; // 4000 Hz
 class LFO {
 
   public:
-    void setup(int freqPin, int dutyPin, int wavePin, int rangePin);
+    void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan);
     void tick();
     void check(bool usingClockIn);
     void setHigh();
@@ -26,6 +26,8 @@ class LFO {
     int dutyCycle;
     int lastFreq;
     volatile int dacValue;
+    int dacChannel; // 0, 1, or -1 if not using DAC
+    bool usingDac = false;
     volatile long currentValue;
     volatile long periodIncrement[2]; // 0: pulse high, 1: pulse low
     long periodIncrementCopy[2];

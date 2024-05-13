@@ -2,7 +2,7 @@
 #include "Arduino.h"
 #include <limits.h>
 
-void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
+void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan) {
   freqInPin = freqPin;
   dutyInPin = dutyPin;
   waveSwitchPin = wavePin;
@@ -18,6 +18,12 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
   triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
   // TODO: remove this test code
   triangleWaveSelected = true;
+
+  // assign DAC
+  dacChannel = dacChan;
+  if (dacChannel != -1) {
+    usingDac = true;
+  }
 }
 
 void LFO::tick() {
@@ -36,9 +42,17 @@ void LFO::tick() {
     // triangle
     int currentValueDescaled = currentValue >> scalingFactor;
     dacValue = constrain(currentValueDescaled, 0, DAC_RES);
+    if (usingDac) {
+      while (dacChannel == 0 ? DAC->SYNCBUSY.bit.DATA0 : DAC->SYNCBUSY.bit.DATA1);
+      DAC->DATA[dacChannel].reg = dacValue;
+    }
   } else if (rising != lastRising) {
     // pulse
     dacValue = rising ? DAC_RES : 0;
+    if (usingDac) {
+      while (dacChannel == 0 ? DAC->SYNCBUSY.bit.DATA0 : DAC->SYNCBUSY.bit.DATA1);
+      DAC->DATA[dacChannel].reg = dacValue;
+    }
   }
 
   lastRising = rising;
