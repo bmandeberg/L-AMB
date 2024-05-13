@@ -1,6 +1,9 @@
-#include "LFO.h"
-#include "Arduino.h"
+#include <Arduino.h>
+#include <I2C_DMAC.h>
 #include <limits.h>
+#include "LFO.h"
+
+#define MCP4725_I2CADDR_DEFAULT (0x62) // default i2c address
 
 void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan) {
   freqInPin = freqPin;
@@ -19,9 +22,12 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan
   // TODO: remove this test code
   triangleWaveSelected = true;
 
-  // assign DAC
+  // assign DAC or I2C
   dacChannel = dacChan;
-  if (dacChannel != -1) {
+  if (dacChannel == -1) {
+    I2C.begin(400000, REG_ADDR_8BIT, PIO_SERCOM_ALT);
+    I2C.initWriteBytes(MCP4725_I2CADDR_DEFAULT, i2cPacket, 3);
+  } else {
     usingDac = true;
   }
 }
@@ -41,21 +47,25 @@ void LFO::tick() {
   if (triangleWaveSelected) {
     // triangle
     int currentValueDescaled = currentValue >> scalingFactor;
-    dacValue = constrain(currentValueDescaled, 0, DAC_RES);
-    if (usingDac) {
-      while (dacChannel == 0 ? DAC->SYNCBUSY.bit.DATA0 : DAC->SYNCBUSY.bit.DATA1);
-      DAC->DATA[dacChannel].reg = dacValue;
-    }
+    write(constrain(currentValueDescaled, 0, DAC_RES));
   } else if (rising != lastRising) {
     // pulse
-    dacValue = rising ? DAC_RES : 0;
-    if (usingDac) {
-      while (dacChannel == 0 ? DAC->SYNCBUSY.bit.DATA0 : DAC->SYNCBUSY.bit.DATA1);
-      DAC->DATA[dacChannel].reg = dacValue;
-    }
+    write(rising ? DAC_RES : 0);
   }
 
   lastRising = rising;
+}
+
+void LFO::write(int dacValue) {
+  if (usingDac) {
+    while (dacChannel == 0 ? DAC->SYNCBUSY.bit.DATA0 : DAC->SYNCBUSY.bit.DATA1);
+    DAC->DATA[dacChannel].reg = dacValue;
+  } else {
+    i2cPacket[1] = (dacValue / 16) & 0xFF; // upper 8 bits
+    i2cPacket[2] = (dacValue % 16) << 4;   // lower 4 bits left-shifted
+    I2C.write();
+    // while(I2C.writeBusy);
+  }
 }
 
 void LFO::check(bool usingClockIn) {

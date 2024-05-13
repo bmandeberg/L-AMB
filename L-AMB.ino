@@ -1,8 +1,8 @@
 #include <Arduino.h>
+#include <Adafruit_ZeroTimer.h>
 #include "L-AMB.h"
 #include "Switch.h"
 #include "LFO.h"
-#include "Adafruit_ZeroTimer.h"
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
