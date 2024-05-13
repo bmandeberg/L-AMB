@@ -34,7 +34,6 @@ class LFO {
     volatile long periodIncrement[2]; // 0: pulse high, 1: pulse low
     long periodIncrementCopy[2];
     volatile bool rising = false;
-    volatile bool lastRising = false;
     int freqInPin;
     int dutyInPin;
     int waveSwitchPin;

@@ -44,16 +44,11 @@ void LFO::tick() {
   }
 
   // update the DAC value
-  if (triangleWaveSelected) {
-    // triangle
-    int currentValueDescaled = currentValue >> scalingFactor;
-    write(constrain(currentValueDescaled, 0, DAC_RES));
-  } else if (rising != lastRising) {
-    // pulse
-    write(rising ? DAC_RES : 0);
-  }
-
-  lastRising = rising;
+  int currentValueDescaled = currentValue >> scalingFactor;
+  write(triangleWaveSelected ?
+    constrain(currentValueDescaled, 0, DAC_RES) :
+    (rising ? DAC_RES : 0)
+  );
 }
 
 void LFO::write(int dacValue) {
