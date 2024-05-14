@@ -25,7 +25,7 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan
   // assign DAC or I2C
   dacChannel = dacChan;
   if (dacChannel == -1) {
-    I2C.begin(400000, REG_ADDR_8BIT, PIO_SERCOM_ALT);
+    I2C.begin(3200000);
     I2C.initWriteBytes(MCP4725_I2CADDR_DEFAULT, i2cPacket, 3);
   } else {
     usingDac = true;
@@ -45,10 +45,11 @@ void LFO::tick() {
 
   // update the DAC value
   int currentValueDescaled = currentValue >> scalingFactor;
-  write(triangleWaveSelected ?
-    constrain(currentValueDescaled, 0, DAC_RES) :
-    (rising ? DAC_RES : 0)
-  );
+  // write(triangleWaveSelected ?
+  //   constrain(currentValueDescaled, 0, DAC_RES) :
+  //   (rising ? DAC_RES : 0)
+  // );
+  write(random(0, DAC_RES));
 }
 
 void LFO::write(int dacValue) {
@@ -59,7 +60,7 @@ void LFO::write(int dacValue) {
     i2cPacket[1] = (dacValue / 16) & 0xFF; // upper 8 bits
     i2cPacket[2] = (dacValue % 16) << 4;   // lower 4 bits left-shifted
     I2C.write();
-    // while(I2C.writeBusy);
+    while(I2C.writeBusy);
   }
 }
 

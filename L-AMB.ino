@@ -22,15 +22,15 @@ bool lastUsingClockIn = false;
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
 
-Adafruit_ZeroTimer zt5 = Adafruit_ZeroTimer(5);
-void TC5_Handler(){
-  Adafruit_ZeroTimer::timerHandler(5);
-}
+// Adafruit_ZeroTimer zt5 = Adafruit_ZeroTimer(5);
+// void TC5_Handler(){
+//   Adafruit_ZeroTimer::timerHandler(5);
+// }
 
 // tick LFOs within the ISR
 void tickLFOs() {
   lfo1.tick();
-  lfo2.tick();
+  // lfo2.tick();
   // lfo3.tick();
 }
 
@@ -52,8 +52,8 @@ void setup() {
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
-  lfo1.setup(A2, A3, 24, 25, 0);
-  lfo2.setup(A4, A5, 23, 3, 1);
+  lfo1.setup(A2, A3, 24, 25, -1);
+  // lfo2.setup(A4, A5, 23, 3, 1);
   // TODO: access extra pins! Can't use lfo3 until that happens, need extra analog in
   // lfo3.setup(A6, A7, 4, 0, -1);
 
