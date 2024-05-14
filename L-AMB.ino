@@ -26,10 +26,10 @@ uint8_t i2cBuffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
 
-Adafruit_ZeroTimer zt5 = Adafruit_ZeroTimer(5);
-void TC5_Handler() {
-  Adafruit_ZeroTimer::timerHandler(5);
-}
+// Adafruit_ZeroTimer zt5 = Adafruit_ZeroTimer(5);
+// void TC5_Handler() {
+//   Adafruit_ZeroTimer::timerHandler(5);
+// }
 
 // tick LFOs within the ISR
 void tickLFOs() {
@@ -64,7 +64,7 @@ void setup() {
   // lfo3.setup(A6, A7, 4, 0);
 
   // initialize I2C
-  I2C.begin(400000, REG_ADDR_8BIT, PIO_SERCOM_ALT);
+  I2C.begin(400000);
   I2C.initWriteBytes(MCP4728_I2CADDR_DEFAULT, i2cBuffer, 8);
 
   // setup main clock for ticking LFOs
