@@ -42,7 +42,7 @@ int LFO::tickDacVal() {
 void LFO::check(bool usingClockIn) {
   rangeSwitch.check();
   waveSwitch.check();
-  
+
   int freq = analogRead(freqInPin);
   int dutyCycle = analogRead(dutyInPin);
 

@@ -13,7 +13,8 @@ public:
       LFO* obj;
     } bound;
 
-    CallbackUnion() : fn(nullptr) {} // initialize to nullptr to avoid undefined behavior
+    CallbackUnion()
+      : fn(nullptr) {}  // initialize to nullptr to avoid undefined behavior
   };
 
   // define an enum class to distinguish between callback types
@@ -27,12 +28,14 @@ private:
   CallbackType type;
 
 public:
-  Callback() : type(CallbackType::FUNCTION) {
+  Callback()
+    : type(CallbackType::FUNCTION) {
     cb.fn = nullptr;
   }
 
   // constructor for free functions
-  Callback(void (*function)()) : type(CallbackType::FUNCTION) {
+  Callback(void (*function)())
+    : type(CallbackType::FUNCTION) {
     cb.fn = function;
   }
 
@@ -58,4 +61,4 @@ public:
   }
 };
 
-#endif // CALLBACK_H
+#endif  // CALLBACK_H

@@ -5,7 +5,7 @@
 #include "Switch.h"
 #include "LFO.h"
 
-#define MCP4728_I2CADDR_DEFAULT 0x60
+#define MCP4728_I2CADDR_DEFAULT 0x64
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
@@ -21,7 +21,7 @@ static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
 int clockDivMultOptions[numOptions];
 bool lastUsingClockIn = false;
-uint8_t i2cBuffer[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+uint8_t i2cBuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
