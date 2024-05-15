@@ -33,10 +33,9 @@ int LFO::tickDacVal() {
 
   // update the DAC value
   int currentValueDescaled = currentValue >> scalingFactor;
-  // return triangleWaveSelected ?
-  //   constrain(currentValueDescaled, 0, DAC_RES) :
-  //   rising ? DAC_RES : 0;
-  return random(0, DAC_RES);
+  return triangleWaveSelected ?
+    constrain(currentValueDescaled, 0, DAC_RES) :
+    rising ? DAC_RES : 0;
 }
 
 void LFO::check(bool usingClockIn) {

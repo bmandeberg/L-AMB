@@ -22,16 +22,16 @@ public:
   void toggleWave();
 
 private:
-  long period;
+  long period = 1000000;
   int lastFreq;
-  volatile long currentValue;
-  volatile long periodIncrement[2]; // 0: pulse high, 1: pulse low
+  volatile long currentValue = 0;
+  volatile long periodIncrement[2] = { 53673, 53673 }; // 0: pulse high, 1: pulse low
   long periodIncrementCopy[2];
-  volatile bool rising = false;
+  volatile bool rising = true;
   int freqInPin;
   int dutyInPin;
   int waveSwitchPin;
-  bool triangleWaveSelected = false;
+  bool triangleWaveSelected = true;
   int rangeSwitchPin;
   bool highRange = false;
   int lastDutyCycle;
