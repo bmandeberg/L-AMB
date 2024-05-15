@@ -9,7 +9,7 @@ static const long scaledDacResolution = DAC_RES << scalingFactor;  // multiply b
 static const long lowSlowestPeriod = 20000000;                     // 0.05 Hz
 static const long lowFastestPeriod = 200000;                       // 5 Hz
 static const long highSlowestPeriod = 20000;                       // 50 Hz
-static const long highFastestPeriod = 250;                         // 4000 Hz
+static const long highFastestPeriod = 300;                         // 3333.33 Hz
 
 class LFO {
 
@@ -23,10 +23,9 @@ public:
 
 private:
   long period;
-  int dutyCycle;
   int lastFreq;
   volatile long currentValue;
-  volatile long periodIncrement[2];  // 0: pulse high, 1: pulse low
+  volatile long periodIncrement[2]; // 0: pulse high, 1: pulse low
   long periodIncrementCopy[2];
   volatile bool rising = false;
   int freqInPin;
@@ -40,4 +39,4 @@ private:
   Switch rangeSwitch;
 };
 
-#endif  // LFO_H
+#endif // LFO_H

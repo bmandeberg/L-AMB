@@ -45,9 +45,10 @@ void LFO::check(bool usingClockIn) {
 
   int freq = analogRead(freqInPin);
   int dutyCycle = analogRead(dutyInPin);
+  // TODO: remove this test code
+  dutyCycle = ADC_RES / 2;
 
   bool updatePeriod = lastFreq != freq || lastUsingClockIn != usingClockIn;
-  // bool updatePeriod = true;
   if (updatePeriod) {
     // if using external clock input
     if (usingClockIn) {
@@ -62,6 +63,9 @@ void LFO::check(bool usingClockIn) {
       period = map(freq, 0, ADC_RES, slowestPeriod, fastestPeriod);
     }
   }
+
+  // TODO: remove this test code
+  period = 1000000;
 
   // if anything has changed, update the periodIncrement
   if (updatePeriod || dutyCycle != lastDutyCycle) {
@@ -83,10 +87,6 @@ void LFO::check(bool usingClockIn) {
 
   lastDutyCycle = dutyCycle;
   lastFreq = freq;
-
-  // TODO: remove this test code
-  period = 1000000;
-  dutyCycle = ADC_RES / 2;
 }
 
 void LFO::setHigh() {

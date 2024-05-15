@@ -36,8 +36,7 @@ void tickLFOs() {
   fillBuffer(0, lfo1.tickDacVal());
   fillBuffer(1, lfo2.tickDacVal());
   // fillBuffer(2, lfo3.tickDacVal());
-  I2C.write();
-  // while(I2C.writeBusy);
+  I2C.write(); // in parallel, takes about 40 micros
 }
 
 void toggleClockSelected() {
@@ -62,9 +61,10 @@ void setup() {
   lfo2.setup(A4, A5, 23, 3);
   // TODO: access extra pins! Can't use lfo3 until that happens, need extra analog in
   // lfo3.setup(A6, A7, 4, 0);
+  checkLFOs();
 
-  // initialize I2C
-  I2C.begin(400000);
+  // initialize I2C for communicating with DAC
+  I2C.begin(3400000);
   I2C.initWriteBytes(MCP4728_I2CADDR_DEFAULT, i2cBuffer, 8);
 
   // setup main clock for ticking LFOs
