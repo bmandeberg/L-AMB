@@ -9,8 +9,8 @@
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
-const int clockInPin = 0;
-const int clockSelectPin = 1;
+const int clockInPin = 10;
+const int clockSelectPin = 11;
 bool clockSelected = false;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
@@ -57,9 +57,9 @@ void setup() {
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
-  lfo1.setup(A0, A1, 24, 25);
-  lfo2.setup(A2, A3, 23, 2);
-  lfo3.setup(A4, A5, 3, 4);
+  lfo1.setup(A0, A1, 2, 3);
+  lfo2.setup(A2, A3, 4, 5);
+  lfo3.setup(A4, A5, 7, 9);
   checkLFOs();
 
   // initialize I2C for communicating with DAC
