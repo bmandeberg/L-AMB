@@ -13,11 +13,10 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
   rangeSwitch.setup(rangeSwitchPin, false, false, setHighCallback, setLowCallback);
   highRange = digitalRead(rangeSwitchPin) == HIGH;
   
-  Callback toggleWaveCallback(&LFO::toggleWave, this);
-  waveSwitch.setup(waveSwitchPin, false, false, toggleWaveCallback, toggleWaveCallback);
+  Callback triangleWaveCallback(&LFO::setTriangleWave, this);
+  Callback squareWaveCallback(&LFO::setSquareWave, this);
+  waveSwitch.setup(waveSwitchPin, false, false, triangleWaveCallback, squareWaveCallback);
   triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
-  // TODO: remove this test code
-  triangleWaveSelected = true;
 }
 
 int LFO::tickDacVal() {
@@ -44,10 +43,8 @@ void LFO::check(bool usingClockIn) {
 
   int freq = analogRead(freqInPin);
   int dutyCycle = analogRead(dutyInPin);
-  // TODO: remove this test code
-  dutyCycle = ADC_RES / 2;
 
-  bool updatePeriod = lastFreq != freq || lastUsingClockIn != usingClockIn;
+  bool updatePeriod = knobChanged(freq, lastFreq) || lastUsingClockIn != usingClockIn;
   if (updatePeriod) {
     // if using external clock input
     if (usingClockIn) {
@@ -59,15 +56,19 @@ void LFO::check(bool usingClockIn) {
       // set LFO period based on frequency knob
       long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
       long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
+      // period = map(freq, 0, ADC_RES, slowestPeriod, fastestPeriod);
       period = map(freq, 0, ADC_RES, slowestPeriod, fastestPeriod);
+      Serial.println(freq);
     }
+
+    lastFreq = freq;
   }
 
-  // TODO: remove this test code
   period = 1000000;
+  dutyCycle = ADC_RES / 4;
 
   // if anything has changed, update the periodIncrement
-  if (updatePeriod || dutyCycle != lastDutyCycle) {
+  if (updatePeriod || knobChanged(dutyCycle, lastDutyCycle)) {
     int duty = rising ? dutyCycle : ADC_RES - dutyCycle;
     // make sure period * duty doesn't overflow
     long dutyPeriod = duty && period > LONG_MAX / duty ?
@@ -82,10 +83,9 @@ void LFO::check(bool usingClockIn) {
     periodIncrement[0] = periodIncrementCopy[0];
     periodIncrement[1] = periodIncrementCopy[1];
     interrupts();
-  }
 
-  lastDutyCycle = dutyCycle;
-  lastFreq = freq;
+    lastDutyCycle = dutyCycle;
+  }
 }
 
 void LFO::setHigh() {
@@ -100,6 +100,15 @@ void LFO::setLow() {
   }
 }
 
-void LFO::toggleWave() {
-  triangleWaveSelected = !triangleWaveSelected;
+void LFO::setTriangleWave() {
+  triangleWaveSelected = true;
+}
+
+void LFO::setSquareWave() {
+  triangleWaveSelected = false;
+}
+
+bool knobChanged(int thisKnob, int lastKnob) {
+  const int minKnobDiff = 5;
+  return thisKnob < lastKnob - minKnobDiff || thisKnob > lastKnob + minKnobDiff;
 }

@@ -19,7 +19,8 @@ public:
   void check(bool usingClockIn);
   void setHigh();
   void setLow();
-  void toggleWave();
+  void setTriangleWave();
+  void setSquareWave();
 
 private:
   long period = 1000000;
@@ -38,5 +39,7 @@ private:
   Switch waveSwitch;
   Switch rangeSwitch;
 };
+
+bool knobChanged(int thisKnob, int lastKnob);
 
 #endif // LFO_H

@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <Adafruit_ZeroTimer.h>
 #include <I2C_DMAC.h>
 #include "L-AMB.h"
@@ -6,6 +5,7 @@
 #include "LFO.h"
 
 #define MCP4728_I2CADDR_DEFAULT 0x64
+#define TIMER_NUM 3
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
@@ -26,17 +26,18 @@ uint8_t i2cBuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
 
-// Adafruit_ZeroTimer zt5 = Adafruit_ZeroTimer(5);
-// void TC5_Handler() {
-//   Adafruit_ZeroTimer::timerHandler(5);
-// }
+Adafruit_ZeroTimer zt = Adafruit_ZeroTimer(TIMER_NUM);
+void TC3_Handler() {
+  Adafruit_ZeroTimer::timerHandler(TIMER_NUM);
+}
 
 // tick LFOs within the ISR
 void tickLFOs() {
   fillBuffer(0, lfo1.tickDacVal());
-  fillBuffer(1, lfo2.tickDacVal());
-  fillBuffer(2, lfo3.tickDacVal());
-  I2C.write(); // in parallel, takes about 40 micros
+  // fillBuffer(1, lfo2.tickDacVal());
+  // fillBuffer(2, lfo3.tickDacVal());
+
+  I2C.write(); // in parallel via DMA, takes about 40 micros
 }
 
 void toggleClockSelected() {
@@ -48,7 +49,6 @@ void toggleClockSelected() {
 }
 
 void setup() {
-  Serial.begin(9600);
   initializeClockDivMultOptions();
 
   Callback toggleClockCallback(toggleClockSelected);
@@ -58,31 +58,24 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
   lfo1.setup(A0, A1, 2, 3);
-  lfo2.setup(A2, A3, 4, 5);
-  lfo3.setup(A4, A5, 7, 9);
+  // lfo2.setup(A2, A3, 4, 5);
+  // lfo3.setup(A4, A5, 7, 9);
   checkLFOs();
 
-  // initialize I2C for communicating with DAC
+  // initialize I2C for communicating with DAC via DMA
   I2C.begin(3400000);
   I2C.initWriteBytes(MCP4728_I2CADDR_DEFAULT, i2cBuffer, 8);
 
   // setup main clock for ticking LFOs
-  // zt5.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
-  // zt5.setCompare(0, clockResolution * 120);
-  // zt5.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
-  // zt5.enable(true);
+  zt.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
+  zt.setCompare(0, F_CPU / 2500000 * clockResolution);
+  zt.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
+  zt.enable(true);
 }
-
-long time = 0;
 
 void loop() {
   clockSelectSwitch.check();
-
-  time = micros();
-  tickLFOs();
-  long elapsed = micros() - time;
-  Serial.println(elapsed);
-  delay(1000);
+  checkLFOs();
 }
 
 void updateClockPeriod() {
@@ -92,14 +85,14 @@ void updateClockPeriod() {
   lastClockTime = micros();
 }
 
-// check LFO inputs
+// check LFO inputs, takes about 162 micros
 void checkLFOs() {
-  bool usingClockIn = clockSelected && clockPeriod > minClockPeriod;
-  lfo1.check(usingClockIn);
-  lfo2.check(usingClockIn);
-  lfo3.check(usingClockIn);
+  bool usingClock = usingClockIn();
+  lfo1.check(usingClock);
+  // lfo2.check(usingClock);
+  // lfo3.check(usingClock);
 
-  lastUsingClockIn = usingClockIn;
+  lastUsingClockIn = usingClock;
 }
 
 void initializeClockDivMultOptions() {
