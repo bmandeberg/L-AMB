@@ -9,13 +9,13 @@
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
-const int clockInPin = 1;
-const int clockSelectPin = 5;
+const int clockInPin = 0;
+const int clockSelectPin = 1;
 bool clockSelected = false;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
 const long minClockPeriod = 250;
-const long clockResolution = 25;
+const long clockResolution = 50; // clock updates at 20KHz
 const int maxDivMult = 9;
 static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
@@ -35,7 +35,7 @@ Switch clockSelectSwitch;
 void tickLFOs() {
   fillBuffer(0, lfo1.tickDacVal());
   fillBuffer(1, lfo2.tickDacVal());
-  // fillBuffer(2, lfo3.tickDacVal());
+  fillBuffer(2, lfo3.tickDacVal());
   I2C.write(); // in parallel, takes about 40 micros
 }
 
@@ -57,10 +57,9 @@ void setup() {
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
-  lfo1.setup(A2, A3, 24, 25);
-  lfo2.setup(A4, A5, 23, 3);
-  // TODO: access extra pins! Can't use lfo3 until that happens, need extra analog in
-  // lfo3.setup(A6, A7, 4, 0);
+  lfo1.setup(A0, A1, 24, 25);
+  lfo2.setup(A2, A3, 23, 2);
+  lfo3.setup(A4, A5, 3, 4);
   checkLFOs();
 
   // initialize I2C for communicating with DAC
@@ -98,7 +97,7 @@ void checkLFOs() {
   bool usingClockIn = clockSelected && clockPeriod > minClockPeriod;
   lfo1.check(usingClockIn);
   lfo2.check(usingClockIn);
-  // lfo3.check(usingClockIn);
+  lfo3.check(usingClockIn);
 
   lastUsingClockIn = usingClockIn;
 }
