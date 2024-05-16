@@ -59,4 +59,4 @@ long multKnobWithoutOverflow(long valA, long valB);
 
 int bufferedKnob(int knobVal);
 
-#endif // LFO_H
+#endif  // LFO_H

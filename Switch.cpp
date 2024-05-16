@@ -16,13 +16,13 @@ void Switch::check() {
   if (buttonRead != lastButtonState) {
     lastDebounceTime = millis();
   }
-  if (_debounceDifference() > debounceDelay) {
-    _handlePress(buttonRead);
+  if (millis() - lastDebounceTime > debounceDelay) {
+    handlePress(buttonRead);
   }
   lastButtonState = buttonRead;
 }
 
-void Switch::_handlePress(int buttonRead) {
+void Switch::handlePress(int buttonRead) {
   if (buttonRead != buttonState) {
     buttonState = buttonRead;
     int onState = inverted ? LOW : HIGH;
@@ -34,8 +34,4 @@ void Switch::_handlePress(int buttonRead) {
       disengage.invoke();
     }
   }
-}
-
-unsigned long Switch::_debounceDifference() {
-  return millis() - lastDebounceTime;
 }

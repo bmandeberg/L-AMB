@@ -16,8 +16,7 @@ private:
   int buttonState;
   bool inverted;
   int lastButtonState;
-  void _handlePress(int buttonRead);
-  unsigned long _debounceDifference();
+  void handlePress(int buttonRead);
   Callback engage;
   Callback disengage;
 };

@@ -15,4 +15,4 @@ extern bool lastUsingClockIn;
 
 bool usingClockIn();
 
-#endif // LAMB_H
+#endif  // LAMB_H
