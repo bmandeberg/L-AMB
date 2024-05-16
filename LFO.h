@@ -42,4 +42,8 @@ private:
 
 bool knobChanged(int thisKnob, int lastKnob);
 
+long multKnobWithoutOverflow(long valA, long valB);
+
+int bufferedKnob(int knobVal);
+
 #endif // LFO_H
