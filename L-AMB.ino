@@ -4,26 +4,28 @@
 #include "Switch.h"
 #include "LFO.h"
 
-#define MCP4728_I2CADDR_DEFAULT 0x64
+#define MCP4725_I2CADDR_DEFAULT 0x62
+#define MCP4725_I2CADDR_ALT 0x63
 #define TIMER_NUM 3
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
-const int clockInPin = 10;
-const int clockSelectPin = 11;
+const int clockInPin = 1;
+const int clockSelectPin = 5;
 volatile bool clockSelected = false;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
-const long clockResolution = 50; // clock updates at 20KHz
+const long clockResolution = 25; // clock updates at 20KHz
 const int maxDivMult = 9;
 static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
 int clockDivMultOptions[numOptions];
 bool lastUsingClockIn = false;
-uint8_t i2cBuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
+
+// I2C_DMAC I2C1(&sercom3, 13, 12);
 
 Adafruit_ZeroTimer zt = Adafruit_ZeroTimer(TIMER_NUM);
 void TC3_Handler() {
@@ -32,11 +34,9 @@ void TC3_Handler() {
 
 // tick LFOs within the ISR
 void tickLFOs() {
-  fillBuffer(0, lfo1.tickDacVal());
-  // fillBuffer(1, lfo2.tickDacVal());
-  // fillBuffer(2, lfo3.tickDacVal());
-
-  I2C.write(); // in parallel via DMA, takes about 40 micros
+  lfo1.tick();
+  // lfo2.tick();
+  // lfo3.tick();
 }
 
 void toggleClockSelected() {
@@ -56,14 +56,16 @@ void setup() {
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
-  lfo1.setup(A0, A1, 2, 3);
-  // lfo2.setup(A2, A3, 4, 5);
-  // lfo3.setup(A4, A5, 7, 9);
-  checkLFOs();
+  // setup second I2C
+  // pinPeripheral(13, PIO_SERCOM_ALT);
+  // pinPeripheral(12, PIO_SERCOM_ALT);
+  // I2C1.setWriteChannel(2);
+  // I2C1.setReadChannel(3);
 
-  // initialize I2C for communicating with DAC via DMA
-  I2C.begin(3400000);
-  I2C.initWriteBytes(MCP4728_I2CADDR_DEFAULT, i2cBuffer, 8);
+  lfo1.setup(A1, A2, 24, 25);
+  // lfo2.setup(A3, A4, 23, 3, MCP4725_I2CADDR_DEFAULT, &I2C);
+  // lfo3.setup(A5, A6, 4, 0, MCP4725_I2CADDR_ALT, &I2C1);
+  checkLFOs();
 
   // setup main clock for ticking LFOs
   zt.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
@@ -119,10 +121,4 @@ void initializeClockDivMultOptions() {
 
 bool usingClockIn() {
   return clockSelected && clockPeriod > highFastestPeriod && clockPeriod < lowSlowestPeriod;
-}
-
-void fillBuffer(int position, int value) {
-  int index = position * 2;
-  i2cBuffer[index] = value >> 8;
-  i2cBuffer[index + 1] = value & 0xFF;
 }

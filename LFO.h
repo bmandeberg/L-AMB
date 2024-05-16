@@ -1,8 +1,11 @@
 #ifndef LFO_H
 #define LFO_H
 
+#include <I2C_DMAC.h>
 #include "Switch.h"
 #include "L-AMB.h"
+
+#define MCP4725_CMD_WRITEDAC (0x40)
 
 static const long scalingFactor = 17;
 static const long scaledDacResolution = DAC_RES << scalingFactor;  // multiply by 131072
@@ -15,7 +18,8 @@ class LFO {
 
 public:
   void setup(int freqPin, int dutyPin, int wavePin, int rangePin);
-  int tickDacVal();
+  void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacAddr, I2C_DMAC* i2cRef);
+  void tick();
   void check(bool usingClockIn);
   void setHigh();
   void setLow();
@@ -37,8 +41,15 @@ private:
   int rangeSwitchPin;
   bool highRange = false;
   int lastDutyCycle;
+  uint8_t dacAddress;
+  uint8_t i2cPacket[3] = {MCP4725_CMD_WRITEDAC, 0, 0};
+  I2C_DMAC* i2c;
   Switch waveSwitch;
   Switch rangeSwitch;
+  void init(int freqPin, int dutyPin, int wavePin, int rangePin);
+  void (LFO::*write)(int dacValue);
+  void writeDAC(int dacValue);
+  void writeI2C(int dacValue);
 };
 
 bool knobChanged(int thisKnob, int lastKnob);

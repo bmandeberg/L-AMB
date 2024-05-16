@@ -2,7 +2,27 @@
 #include <limits.h>
 #include "LFO.h"
 
+#define I2C_FREQ 3200000
+
+// setup internal DAC
 void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
+  init(freqPin, dutyPin, wavePin, rangePin);
+  analogWriteResolution(12);
+  analogWrite(A0, 0);
+  write = &LFO::writeDAC;
+}
+
+// setup external DAC via I2C
+void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacAddr, I2C_DMAC* i2cRef) {
+  init(freqPin, dutyPin, wavePin, rangePin);
+  dacAddress = dacAddr;
+  i2c = i2cRef;
+  i2c->begin(I2C_FREQ);
+  i2c->initWriteBytes(dacAddress, i2cPacket, 3);
+  write = &LFO::writeI2C;
+}
+
+void LFO::init(int freqPin, int dutyPin, int wavePin, int rangePin) {
   freqInPin = freqPin;
   dutyInPin = dutyPin;
   waveSwitchPin = wavePin;
@@ -19,7 +39,7 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
   triangleWaveSelected = digitalRead(waveSwitchPin) == HIGH;
 }
 
-int LFO::tickDacVal() {
+void LFO::tick() {
   // progress the wave
   currentValue += rising ? periodIncrement[0] : -periodIncrement[1];
   if (currentValue >= scaledDacResolution) {
@@ -30,11 +50,22 @@ int LFO::tickDacVal() {
     rising = true;
   }
 
-  // update the DAC value
+  // write the DAC value
   int currentValueDescaled = currentValue >> scalingFactor;
-  return triangleWaveSelected ?
+  (this->*write)(triangleWaveSelected ?
     constrain(currentValueDescaled, 0, DAC_RES) :
-    rising ? DAC_RES : 0;
+    rising ? DAC_RES : 0);
+}
+
+void LFO::writeDAC(int dacValue) {
+  while (DAC->SYNCBUSY.bit.DATA0);
+  DAC->DATA[0].reg = dacValue;
+}
+
+void LFO::writeI2C(int dacValue) {
+  i2cPacket[1] = (dacValue / 16) & 0xFF; // upper 8 bits
+  i2cPacket[2] = (dacValue % 16) << 4;   // lower 4 bits
+  i2c->write(); // takes about 20 micros in parallel
 }
 
 void LFO::check(bool usingClockIn) {
