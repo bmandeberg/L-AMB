@@ -21,6 +21,7 @@ public:
   void setLow();
   void setTriangleWave();
   void setSquareWave();
+  void reset();
 
 private:
   long period = 1000000;

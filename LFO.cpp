@@ -105,6 +105,13 @@ void LFO::setSquareWave() {
   triangleWaveSelected = false;
 }
 
+void LFO::reset() {
+  noInterrupts();
+  currentValue = 0;
+  rising = true;
+  interrupts();
+}
+
 bool knobChanged(int thisKnob, int lastKnob) {
   const int minKnobDiff = 5;
   return thisKnob < lastKnob - minKnobDiff || thisKnob > lastKnob + minKnobDiff;

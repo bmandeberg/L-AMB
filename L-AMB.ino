@@ -11,10 +11,9 @@ const int DAC_RES = 4095;
 const int ADC_RES = 1023;
 const int clockInPin = 10;
 const int clockSelectPin = 11;
-bool clockSelected = false;
+volatile bool clockSelected = false;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
-const long minClockPeriod = 250;
 const long clockResolution = 50; // clock updates at 20KHz
 const int maxDivMult = 9;
 static const int numOptions = (maxDivMult - 1) * 2 + 1;
@@ -81,6 +80,10 @@ void loop() {
 void updateClockPeriod() {
   if (lastClockTime) {
     clockPeriod = micros() - lastClockTime;
+
+    if (usingClockIn()) {
+      resetLFOs();
+    }
   }
   lastClockTime = micros();
 }
@@ -93,6 +96,12 @@ void checkLFOs() {
   // lfo3.check(usingClock);
 
   lastUsingClockIn = usingClock;
+}
+
+void resetLFOs() {
+  lfo1.reset();
+  // lfo2.reset();
+  // lfo3.reset();
 }
 
 void initializeClockDivMultOptions() {
@@ -109,7 +118,7 @@ void initializeClockDivMultOptions() {
 }
 
 bool usingClockIn() {
-  return clockSelected && clockPeriod > minClockPeriod;
+  return clockSelected && clockPeriod > highFastestPeriod && clockPeriod < lowSlowestPeriod;
 }
 
 void fillBuffer(int position, int value) {
