@@ -58,7 +58,6 @@ void LFO::check(bool usingClockIn) {
       long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
       // period = map(freq, 0, ADC_RES, slowestPeriod, fastestPeriod);
       period = map(freq, 0, ADC_RES, slowestPeriod, fastestPeriod);
-      Serial.println(freq);
     }
 
     lastFreq = freq;
