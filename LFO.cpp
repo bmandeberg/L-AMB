@@ -4,7 +4,7 @@
 
 #define I2C_FREQ 3200000
 
-// setup internal DAC
+// setup internal DAC, currently hardcoded to A0
 void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
   init(freqPin, dutyPin, wavePin, rangePin);
   analogWriteResolution(12);
@@ -75,7 +75,9 @@ void LFO::check(bool usingClockIn) {
   int freq = bufferedKnob(analogRead(freqInPin));
   int dutyCycle = bufferedKnob(analogRead(dutyInPin));
 
-  bool updatePeriod = knobChanged(freq, lastFreq) || lastUsingClockIn != usingClockIn;
+  bool updatePeriod = knobChanged(freq, lastFreq) ||
+    lastUsingClockIn != usingClockIn ||
+    lastRange != highRange;
   if (updatePeriod) {
     // if using external clock input
     if (usingClockIn) {
@@ -95,11 +97,11 @@ void LFO::check(bool usingClockIn) {
     }
 
     lastFreq = freq;
+    lastRange = highRange;
   }
 
   // if anything has changed, update the periodIncrement
   if (updatePeriod || knobChanged(dutyCycle, lastDutyCycle)) {
-    int duty = rising ? dutyCycle : ADC_RES - dutyCycle;
     // make sure period * duty doesn't overflow
     long dutyPeriod = multKnobWithoutOverflow(period, dutyCycle);
     long dutyPeriodSteps = dutyPeriod / clockResolution;

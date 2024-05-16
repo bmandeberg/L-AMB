@@ -40,6 +40,7 @@ private:
   bool triangleWaveSelected = true;
   int rangeSwitchPin;
   bool highRange = false;
+  bool lastRange = false;
   int lastDutyCycle;
   uint8_t dacAddress;
   uint8_t i2cPacket[3] = {MCP4725_CMD_WRITEDAC, 0, 0};

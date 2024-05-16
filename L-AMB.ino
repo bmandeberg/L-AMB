@@ -15,7 +15,7 @@ const int clockSelectPin = 5;
 volatile bool clockSelected = false;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
-const long clockResolution = 25; // clock updates at 20KHz
+const long clockResolution = 25; // clock updates at 40KHz
 const int maxDivMult = 9;
 static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
@@ -27,7 +27,7 @@ Switch clockSelectSwitch;
 
 // I2C_DMAC I2C1(&sercom3, 13, 12);
 
-Adafruit_ZeroTimer zt = Adafruit_ZeroTimer(TIMER_NUM);
+Adafruit_ZeroTimer timer = Adafruit_ZeroTimer(TIMER_NUM);
 void TC3_Handler() {
   Adafruit_ZeroTimer::timerHandler(TIMER_NUM);
 }
@@ -68,10 +68,10 @@ void setup() {
   checkLFOs();
 
   // setup main clock for ticking LFOs
-  zt.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
-  zt.setCompare(0, F_CPU / 2500000 * clockResolution);
-  zt.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
-  zt.enable(true);
+  timer.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
+  timer.setCompare(0, F_CPU / 2500000 * clockResolution);
+  timer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
+  timer.enable(true);
 }
 
 void loop() {
