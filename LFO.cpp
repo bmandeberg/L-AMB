@@ -44,48 +44,32 @@ void LFO::check(bool usingClockIn) {
   int freq = analogRead(freqInPin);
   int dutyCycle = analogRead(dutyInPin);
 
-  bool updatePeriod = knobChanged(freq, lastFreq) || lastUsingClockIn != usingClockIn;
-  if (updatePeriod) {
-    // if using external clock input
-    if (usingClockIn) {
-      // freq knob sweeps from divide by 9 to multiply by 9 of clock frequency
-      int coefficient = clockDivMultOptions[freq / knobRange];
-      long newPeriod = freq <= ADC_RES / 2 ? clockPeriod * coefficient : clockPeriod / coefficient;
-      period = constrain(newPeriod, highFastestPeriod, lowSlowestPeriod);
-    } else {
-      // set LFO period based on frequency knob
-      long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
-      long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
-      // period = map(freq, 0, ADC_RES, slowestPeriod, fastestPeriod);
-      period = map(freq, 0, ADC_RES, slowestPeriod, fastestPeriod);
-      Serial.println(freq);
-    }
-
-    lastFreq = freq;
+  // if using external clock input
+  if (usingClockIn) {
+    // freq knob sweeps from divide by 9 to multiply by 9 of clock frequency
+    int coefficient = clockDivMultOptions[freq / knobRange];
+    long newPeriod = freq <= ADC_RES / 2 ? clockPeriod * coefficient : clockPeriod / coefficient;
+    period = constrain(newPeriod, highFastestPeriod, lowSlowestPeriod);
+  } else {
+    // set LFO period based on frequency knob
+    long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
+    long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
+    // make sure freq -> period mapping doesn't overflow
+    long periodInterpolation = multKnobWithoutOverflow(slowestPeriod - fastestPeriod, freq);
+    period = slowestPeriod - periodInterpolation;
   }
 
-  period = 1000000;
-  dutyCycle = ADC_RES / 4;
+  // make sure period * duty doesn't overflow
+  long dutyPeriod = multKnobWithoutOverflow(period, dutyCycle);
+  long dutyPeriodSteps = dutyPeriod / clockResolution;
+  long oppositeDutyPeriodSteps = (period - dutyPeriod) / clockResolution;
+  periodIncrementCopy[0] = scaledDacResolution / max(dutyPeriodSteps, 1);
+  periodIncrementCopy[1] = scaledDacResolution / max(oppositeDutyPeriodSteps, 1);
 
-  // if anything has changed, update the periodIncrement
-  if (updatePeriod || knobChanged(dutyCycle, lastDutyCycle)) {
-    int duty = rising ? dutyCycle : ADC_RES - dutyCycle;
-    // make sure period * duty doesn't overflow
-    long dutyPeriod = duty && period > LONG_MAX / duty ?
-      period / ADC_RES * duty :
-      period * duty / ADC_RES;
-    long dutyPeriodIncrement = dutyPeriod / clockResolution;
-    long oppositeDutyPeriodIncrement = (period - dutyPeriod) / clockResolution;
-    periodIncrementCopy[0] = scaledDacResolution / max(dutyPeriodIncrement, 1);
-    periodIncrementCopy[1] = scaledDacResolution / max(oppositeDutyPeriodIncrement, 1);
-
-    noInterrupts();
-    periodIncrement[0] = periodIncrementCopy[0];
-    periodIncrement[1] = periodIncrementCopy[1];
-    interrupts();
-
-    lastDutyCycle = dutyCycle;
-  }
+  noInterrupts();
+  periodIncrement[0] = periodIncrementCopy[0];
+  periodIncrement[1] = periodIncrementCopy[1];
+  interrupts();
 }
 
 void LFO::setHigh() {
@@ -111,4 +95,10 @@ void LFO::setSquareWave() {
 bool knobChanged(int thisKnob, int lastKnob) {
   const int minKnobDiff = 5;
   return thisKnob < lastKnob - minKnobDiff || thisKnob > lastKnob + minKnobDiff;
+}
+
+long multKnobWithoutOverflow(long valA, long valB) {
+  return valB && valA > LONG_MAX / valB ?
+    valA / ADC_RES * valB :
+    valA * valB / ADC_RES;
 }
