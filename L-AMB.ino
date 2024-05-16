@@ -40,6 +40,8 @@ void toggleClockSelected() {
 }
 
 void setup() {
+  Serial.begin(9600);
+  while(!Serial);
   initializeClockDivMultOptions();
 
   Callback toggleClockCallback(toggleClockSelected);
@@ -54,9 +56,14 @@ void setup() {
   checkLFOs();
 }
 
+long time = 0;
+
 void loop() {
   clockSelectSwitch.check();
+  time = micros();
   checkLFOs();
+  long elapsed = micros() - time;
+  Serial.println(elapsed);
   tickLFOs();
   delay(500);
 }
