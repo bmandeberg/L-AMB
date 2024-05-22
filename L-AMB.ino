@@ -11,8 +11,6 @@
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
 const int clockInPin = 1;
-const int clockSelectPin = 5;
-volatile bool clockSelected = false;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
 const long clockResolution = 25; // clock updates at 40KHz
@@ -39,19 +37,8 @@ void tickLFOs() {
   // lfo3.tick();
 }
 
-void toggleClockSelected() {
-  clockSelected = !clockSelected;
-  if (!clockSelected) {
-    lastClockTime = 0;
-    clockPeriod = 0;
-  }
-}
-
 void setup() {
   initializeClockDivMultOptions();
-
-  Callback toggleClockCallback(toggleClockSelected);
-  clockSelectSwitch.setup(clockSelectPin, false, true, toggleClockCallback, toggleClockCallback);
 
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
@@ -65,7 +52,7 @@ void setup() {
   lfo1.setup(A1, A2, 24, 25);
   // lfo2.setup(A3, A4, 23, 3, MCP4725_I2CADDR_DEFAULT, &I2C);
   // lfo3.setup(A5, A6, 4, 0, MCP4725_I2CADDR_ALT, &I2C1);
-  checkLFOs();
+  checkLFOs(false);
 
   // setup main clock for ticking LFOs
   timer.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
@@ -75,8 +62,16 @@ void setup() {
 }
 
 void loop() {
-  clockSelectSwitch.check();
-  checkLFOs();
+  bool usingClock = usingClockIn();
+  // disable external clock use if it's idled
+  if (usingClock && micros() - lastClockTime > lowSlowestPeriod) {
+    clockPeriod = 0;
+    usingClock = false;
+  }
+
+  checkLFOs(usingClock);
+
+  lastUsingClockIn = usingClock;
 }
 
 void updateClockPeriod() {
@@ -91,13 +86,10 @@ void updateClockPeriod() {
 }
 
 // check LFO inputs, takes about 162 micros
-void checkLFOs() {
-  bool usingClock = usingClockIn();
+void checkLFOs(bool usingClock) {
   lfo1.check(usingClock);
   // lfo2.check(usingClock);
   // lfo3.check(usingClock);
-
-  lastUsingClockIn = usingClock;
 }
 
 void resetLFOs() {
@@ -120,5 +112,5 @@ void initializeClockDivMultOptions() {
 }
 
 bool usingClockIn() {
-  return clockSelected && clockPeriod > highFastestPeriod && clockPeriod < lowSlowestPeriod;
+  return clockPeriod > highFastestPeriod && clockPeriod < lowSlowestPeriod;
 }

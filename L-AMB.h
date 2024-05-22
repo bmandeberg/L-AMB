@@ -4,8 +4,6 @@
 extern const int DAC_RES;
 extern const int ADC_RES;
 extern const int clockInPin;
-extern const int clockSelectPin;
-extern volatile bool clockSelected;
 extern volatile long clockPeriod;
 extern volatile long lastClockTime;
 extern const long clockResolution; // in microseconds
