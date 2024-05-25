@@ -10,6 +10,7 @@
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
+const int PWM_RES = 255;
 const int clockInPin = 1;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
@@ -19,6 +20,9 @@ static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
 int clockDivMultOptions[numOptions];
 bool lastUsingClockIn = false;
+static const int led1Pin = 5;
+static const int led2Pin = 7;
+static const int led3Pin = 9;
 
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
@@ -42,6 +46,10 @@ void setup() {
 
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
+
+  pinMode(led1Pin, OUTPUT);
+  pinMode(led2Pin, OUTPUT);
+  pinMode(led3Pin, OUTPUT);
 
   // setup second I2C
   // pinPeripheral(13, PIO_SERCOM_ALT);
@@ -70,6 +78,7 @@ void loop() {
   }
 
   checkLFOs(usingClock);
+  // updateLEDs();
 
   lastUsingClockIn = usingClock;
 }
@@ -113,4 +122,26 @@ void initializeClockDivMultOptions() {
 
 bool usingClockIn() {
   return clockPeriod > highFastestPeriod && clockPeriod < lowSlowestPeriod;
+}
+
+long scaleFromDACtoPWM(long value) {
+  return value * PWM_RES / DAC_RES;
+}
+
+void updateLEDs() {
+  int lfo3Value = lfo3.getValue();
+  int inverseLfo3Value = DAC_RES - lfo3Value;
+  int lfo2Value = lfo2.getValue();
+  int inverseLfo2Value = DAC_RES - lfo2Value;
+  int lfo1Value = lfo1.getValue();
+  int inverseLfo1Value = DAC_RES - lfo1Value;
+  lfo2Value = lfo2Value * inverseLfo3Value / DAC_RES;
+  inverseLfo2Value = inverseLfo2Value * inverseLfo3Value / DAC_RES;
+  lfo1Value = lfo1Value * inverseLfo2Value / DAC_RES;
+  inverseLfo1Value = inverseLfo1Value * inverseLfo2Value / DAC_RES;
+  
+  // led4 is hooked up directly to lfo3Value, not controlled digitally
+  analogWrite(led3Pin, scaleFromDACtoPWM(lfo2Value));
+  analogWrite(led2Pin, scaleFromDACtoPWM(lfo1Value));
+  analogWrite(led1Pin, scaleFromDACtoPWM(inverseLfo1Value));
 }

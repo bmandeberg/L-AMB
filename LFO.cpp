@@ -51,10 +51,10 @@ void LFO::tick() {
   }
 
   // write the DAC value
-  int currentValueDescaled = currentValue >> scalingFactor;
-  (this->*write)(triangleWaveSelected ?
-    constrain(currentValueDescaled, 0, DAC_RES) :
-    rising ? DAC_RES - squareBuffer : squareBuffer);
+  currentValueDescaled = triangleWaveSelected ?
+    currentValue >> scalingFactor :
+    rising ? DAC_RES - squareBuffer : squareBuffer;
+  (this->*write)(currentValueDescaled);
 }
 
 void LFO::writeDAC(int dacValue) {
@@ -116,6 +116,10 @@ void LFO::check(bool usingClockIn) {
 
     lastDutyCycle = dutyCycle;
   }
+}
+
+int LFO::getValue() {
+  return currentValueDescaled;
 }
 
 void LFO::setHigh() {

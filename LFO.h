@@ -27,12 +27,14 @@ public:
   void setTriangleWave();
   void setSquareWave();
   void reset();
+  int getValue();
 
 private:
   long period = 1000000;
   int lastFreq;
   volatile long currentValue = 0;
-  volatile long periodIncrement[2] = { 53673, 53673 }; // 0: pulse high, 1: pulse low
+  int currentValueDescaled = 0;
+  volatile long periodIncrement[2] = {53673, 53673}; // 0: pulse high, 1: pulse low
   long periodIncrementCopy[2];
   volatile bool rising = true;
   int freqInPin;
