@@ -5,10 +5,14 @@
 #define I2C_FREQ 3200000
 
 // setup internal DAC, currently hardcoded to A0
-void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin) {
+void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan, Adafruit_ZeroDMA* dmaRef) {
   init(freqPin, dutyPin, wavePin, rangePin);
-  analogWriteResolution(12);
-  analogWrite(A0, 0);
+  dacChannel = dacChan;
+  analogWrite(A0, dacChannel);
+  dma = dmaRef;
+  dma->addDescriptor((void *)&dacValue, (void *)&DAC->DATA[dacChannel].reg, 1, DMA_BEAT_SIZE_HWORD, false, false);
+  dma->loop(true);
+  dma->startJob();
   write = &LFO::writeDAC;
 }
 
@@ -57,14 +61,13 @@ void LFO::tick() {
   (this->*write)(currentValueDescaled);
 }
 
-void LFO::writeDAC(int dacValue) {
-  while (DAC->SYNCBUSY.bit.DATA0);
-  DAC->DATA[0].reg = dacValue;
+void LFO::writeDAC(int dacVal) {
+  dacValue = dacVal;
 }
 
-void LFO::writeI2C(int dacValue) {
-  i2cPacket[1] = (dacValue / 16) & 0xFF; // upper 8 bits
-  i2cPacket[2] = (dacValue % 16) << 4;   // lower 4 bits
+void LFO::writeI2C(int dacVal) {
+  i2cPacket[1] = (dacVal / 16) & 0xFF; // upper 8 bits
+  i2cPacket[2] = (dacVal % 16) << 4;   // lower 4 bits
   i2c->write(); // takes about 20 micros in parallel
 }
 

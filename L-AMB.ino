@@ -1,4 +1,5 @@
 #include <Adafruit_ZeroTimer.h>
+#include <Adafruit_ZeroDMA.h>
 #include <I2C_DMAC.h>
 #include "L-AMB.h"
 #include "Switch.h"
@@ -28,6 +29,7 @@ LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
 
 // I2C_DMAC I2C1(&sercom3, 13, 12);
+Adafruit_ZeroDMA dma;
 
 Adafruit_ZeroTimer timer = Adafruit_ZeroTimer(TIMER_NUM);
 void TC3_Handler() {
@@ -51,13 +53,19 @@ void setup() {
   pinMode(led2Pin, OUTPUT);
   pinMode(led3Pin, OUTPUT);
 
+  // initialize DAC DMA
+  analogWriteResolution(12);
+  dma.setTrigger(TC3_DMAC_ID_OVF);
+  dma.setAction(DMA_TRIGGER_ACTON_BEAT);
+  dma.allocate();
+
   // setup second I2C
   // pinPeripheral(13, PIO_SERCOM_ALT);
   // pinPeripheral(12, PIO_SERCOM_ALT);
   // I2C1.setWriteChannel(2);
   // I2C1.setReadChannel(3);
 
-  lfo1.setup(A1, A2, 24, 25);
+  lfo1.setup(A1, A2, 24, 25, 0, &dma);
   // lfo2.setup(A3, A4, 23, 3, MCP4725_I2CADDR_DEFAULT, &I2C);
   // lfo3.setup(A5, A6, 4, 0, MCP4725_I2CADDR_ALT, &I2C1);
   checkLFOs(false);
