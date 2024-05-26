@@ -62,12 +62,10 @@ void setup() {
   // setup second I2C
   // pinPeripheral(13, PIO_SERCOM_ALT);
   // pinPeripheral(12, PIO_SERCOM_ALT);
-  // I2C1.setWriteChannel(2);
-  // I2C1.setReadChannel(3);
 
   lfo1.setup(A1, A2, 24, 25, 0, &dma);
-  // lfo2.setup(A3, A4, 23, 3, MCP4725_I2CADDR_DEFAULT, &I2C);
-  // lfo3.setup(A5, A6, 4, 0, MCP4725_I2CADDR_ALT, &I2C1);
+  // lfo2.setup(A3, A4, 23, 3, MCP4725_I2CADDR_DEFAULT, &I2C, 2, 3);
+  // lfo3.setup(A5, A6, 4, 0, MCP4725_I2CADDR_ALT, &I2C1, 4, 5);
   checkLFOs(false);
 
   // setup main clock for ticking LFOs

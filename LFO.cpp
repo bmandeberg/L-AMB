@@ -17,11 +17,13 @@ void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan
 }
 
 // setup external DAC via I2C
-void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacAddr, I2C_DMAC* i2cRef) {
+void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacAddr, I2C_DMAC* i2cRef, int writeChannel, int readChannel) {
   init(freqPin, dutyPin, wavePin, rangePin);
   dacAddress = dacAddr;
   i2c = i2cRef;
   i2c->begin(I2C_FREQ);
+  i2c->setWriteChannel(writeChannel);
+  i2c->setReadChannel(readChannel);
   i2c->initWriteBytes(dacAddress, i2cPacket, 3);
   write = &LFO::writeI2C;
 }

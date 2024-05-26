@@ -20,7 +20,7 @@ class LFO {
 
 public:
   void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan, Adafruit_ZeroDMA* dmaRef);
-  void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacAddr, I2C_DMAC* i2cRef);
+  void setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacAddr, I2C_DMAC* i2cRef, int writeChannel, int readChannel);
   void tick();
   void check(bool usingClockIn);
   void setHigh();
