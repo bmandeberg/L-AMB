@@ -4,6 +4,14 @@
 
 #define I2C_FREQ 3200000
 
+long LFO::slowPeriodLogTable[1024];
+long LFO::fastPeriodLogTable[1024];
+
+long periodLogValue(int knobVal, long slowestPeriod, long fastestPeriod) {
+  double scale = log(slowestPeriod / fastestPeriod) / ADC_RES;
+  return fastestPeriod * exp((ADC_RES - knobVal) * scale);
+}
+
 // setup internal DAC, currently hardcoded to A0
 void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan, Adafruit_ZeroDMA* dmaRef) {
   init(freqPin, dutyPin, wavePin, rangePin);
@@ -87,7 +95,7 @@ void LFO::check(bool usingClockIn) {
     // if using external clock input
     if (usingClockIn) {
       // freq knob sweeps from divide by 9 to multiply by 9 of clock frequency
-      int coefficient = clockDivMultOptions[freq / knobRange];
+      int coefficient = clockDivMultTable[freq / knobRange];
       long newPeriod = freq <= ADC_RES / 2 ?
         clockPeriod * coefficient :
         clockPeriod / coefficient;
@@ -96,9 +104,10 @@ void LFO::check(bool usingClockIn) {
       // set LFO period based on frequency knob
       long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
       long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
-      // make sure freq -> period mapping doesn't overflow
-      long periodInterpolation = multKnobWithoutOverflow(slowestPeriod - fastestPeriod, freq);
-      period = slowestPeriod - periodInterpolation;
+
+      period = highRange ?
+        fastPeriodLogTable[freq] :
+        slowPeriodLogTable[freq];
     }
 
     lastFreq = freq;
@@ -152,6 +161,13 @@ void LFO::reset() {
   currentValue = 0;
   rising = true;
   interrupts();
+}
+
+void LFO::initializePeriodTables() {
+  for (int i = 0; i < 1024; i++) {
+    slowPeriodLogTable[i] = periodLogValue(i, lowSlowestPeriod, lowFastestPeriod);
+    fastPeriodLogTable[i] = periodLogValue(i, highSlowestPeriod, highFastestPeriod);
+  }
 }
 
 bool knobChanged(int thisKnob, int lastKnob) {

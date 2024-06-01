@@ -29,9 +29,12 @@ public:
   void setSquareWave();
   void reset();
   int getValue();
+  static void initializePeriodTables();
 
 private:
   long period = 1000000;
+  static long slowPeriodLogTable[1024];
+  static long fastPeriodLogTable[1024];
   int lastFreq;
   volatile long currentValue = 0;
   int currentValueDescaled = 0;
@@ -65,5 +68,7 @@ bool knobChanged(int thisKnob, int lastKnob);
 long multKnobWithoutOverflow(long valA, long valB);
 
 int bufferedKnob(int knobVal);
+
+long periodLogValue(int knobVal, long slowestPeriod, long fastestPeriod);
 
 #endif  // LFO_H

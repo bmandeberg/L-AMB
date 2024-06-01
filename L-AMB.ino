@@ -19,7 +19,7 @@ const long clockResolution = 25; // clock updates at 40KHz
 const int maxDivMult = 9;
 static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
-int clockDivMultOptions[numOptions];
+int clockDivMultTable[numOptions];
 bool lastUsingClockIn = false;
 static const int led1Pin = 5;
 static const int led2Pin = 7;
@@ -63,6 +63,8 @@ void setup() {
   // pinPeripheral(13, PIO_SERCOM_ALT);
   // pinPeripheral(12, PIO_SERCOM_ALT);
 
+  // setup LFOs
+  LFO::initializePeriodTables();
   lfo1.setup(A1, A2, 24, 25, 0, &dma);
   // lfo2.setup(A3, A4, 23, 3, MCP4725_I2CADDR_DEFAULT, &I2C, 2, 3);
   // lfo3.setup(A5, A6, 4, 0, MCP4725_I2CADDR_ALT, &I2C1, 4, 5);
@@ -121,7 +123,7 @@ void initializeClockDivMultOptions() {
     if (i < 2) {
       descending = false;
     }
-    clockDivMultOptions[optionIndex] = i;
+    clockDivMultTable[optionIndex] = i;
     optionIndex++;
   }
 }
