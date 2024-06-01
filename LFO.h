@@ -12,8 +12,8 @@ static const long scalingFactor = 17;
 static const long scaledDacResolution = DAC_RES << scalingFactor;  // multiply by 131072
 static const int squareBuffer = DAC_RES / 10;                       // attenuate pulse wave by this much on + or - swing
 static const long lowSlowestPeriod = 20000000;                     // 0.05 Hz
-static const long lowFastestPeriod = 200000;                       // 5 Hz
-static const long highSlowestPeriod = 20000;                       // 50 Hz
+static const long lowFastestPeriod = 50000;                       // 20 Hz
+static const long highSlowestPeriod = 50000;                       // 20 Hz
 static const long highFastestPeriod = 300;                         // 3333.33 Hz
 
 class LFO {
