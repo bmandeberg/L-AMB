@@ -102,9 +102,6 @@ void LFO::check(bool usingClockIn) {
       period = constrain(newPeriod, highFastestPeriod, lowSlowestPeriod);
     } else {
       // set LFO period based on frequency knob
-      long slowestPeriod = highRange ? highSlowestPeriod : lowSlowestPeriod;
-      long fastestPeriod = highRange ? highFastestPeriod : lowFastestPeriod;
-
       period = highRange ?
         fastPeriodLogTable[freq] :
         slowPeriodLogTable[freq];
