@@ -16,7 +16,7 @@ long periodLogValue(int knobVal, long slowestPeriod, long fastestPeriod) {
 void LFO::setup(int freqPin, int dutyPin, int wavePin, int rangePin, int dacChan, Adafruit_ZeroDMA* dmaRef) {
   init(freqPin, dutyPin, wavePin, rangePin);
   dacChannel = dacChan;
-  analogWrite(A0, dacChannel);
+  analogWrite(A0, 0);
   dma = dmaRef;
   dma->addDescriptor((void *)&dacValue, (void *)&DAC->DATA[dacChannel].reg, 1, DMA_BEAT_SIZE_HWORD, false, false);
   dma->loop(true);

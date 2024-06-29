@@ -44,10 +44,11 @@ void tickLFOs() {
 }
 
 void setup() {
+  Serial.begin(9600);
   initializeClockDivMultOptions();
 
-  pinMode(clockInPin, INPUT);
-  attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
+  // pinMode(clockInPin, INPUT);
+  // attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
   pinMode(led1Pin, OUTPUT);
   pinMode(led2Pin, OUTPUT);
@@ -55,6 +56,7 @@ void setup() {
 
   // initialize DAC DMA
   analogWriteResolution(12);
+  analogWrite(A1, 0);
   dma.setTrigger(TC3_DMAC_ID_OVF);
   dma.setAction(DMA_TRIGGER_ACTON_BEAT);
   dma.allocate();
@@ -65,7 +67,7 @@ void setup() {
 
   // setup LFOs
   LFO::initializePeriodTables();
-  lfo1.setup(A1, A2, 24, 25, 0, &dma);
+  lfo1.setup(A3, A2, 24, 25, 0, &dma);
   // lfo2.setup(A3, A4, 23, 3, MCP4725_I2CADDR_DEFAULT, &I2C, 2, 3);
   // lfo3.setup(A5, A6, 4, 0, MCP4725_I2CADDR_ALT, &I2C1, 4, 5);
   checkLFOs(false);
@@ -75,7 +77,13 @@ void setup() {
   timer.setCompare(0, F_CPU / 2500000 * clockResolution);
   timer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
   timer.enable(true);
+
+  // analogWrite(A1, 0);
 }
+
+int oneVoltADC = ADC_RES / 6.6f;
+int oneVoltDAC = DAC_RES / 6.6f;
+int lastVoiceVal = 0;
 
 void loop() {
   bool usingClock = usingClockIn();
@@ -89,6 +97,12 @@ void loop() {
   // updateLEDs();
 
   lastUsingClockIn = usingClock;
+
+  int voiceVal = analogRead(A4) / oneVoltADC;
+  if (voiceVal != lastVoiceVal) {
+    analogWrite(A1, min(voiceVal, 6) * oneVoltDAC);
+    lastVoiceVal = voiceVal;
+  }
 }
 
 void updateClockPeriod() {
