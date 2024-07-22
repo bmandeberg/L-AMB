@@ -21,14 +21,13 @@ static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
 int clockDivMultTable[numOptions];
 bool lastUsingClockIn = false;
-static const int led1Pin = 5;
-static const int led2Pin = 7;
-static const int led3Pin = 9;
+const int stepPin = 5;
+int currentStep = 0;
+const int setStepPin = 7;
 
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
 
-// I2C_DMAC I2C1(&sercom3, 13, 12);
 Adafruit_ZeroDMA dma;
 
 Adafruit_ZeroTimer timer = Adafruit_ZeroTimer(TIMER_NUM);
@@ -39,20 +38,14 @@ void TC3_Handler() {
 // tick LFOs within the ISR
 void tickLFOs() {
   lfo1.tick();
-  // lfo2.tick();
-  // lfo3.tick();
 }
 
 void setup() {
   Serial.begin(9600);
   initializeClockDivMultOptions();
 
-  // pinMode(clockInPin, INPUT);
-  // attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
-
-  pinMode(led1Pin, OUTPUT);
-  pinMode(led2Pin, OUTPUT);
-  pinMode(led3Pin, OUTPUT);
+  pinMode(stepPin, INPUT);
+  attachInterrupt(digitalPinToInterrupt(stepPin), stepSequence, RISING);
 
   // initialize DAC DMA
   analogWriteResolution(12);
@@ -61,15 +54,9 @@ void setup() {
   dma.setAction(DMA_TRIGGER_ACTON_BEAT);
   dma.allocate();
 
-  // setup second I2C
-  // pinPeripheral(13, PIO_SERCOM_ALT);
-  // pinPeripheral(12, PIO_SERCOM_ALT);
-
   // setup LFOs
   LFO::initializePeriodTables();
   lfo1.setup(A3, A2, 24, 25, 0, &dma);
-  // lfo2.setup(A3, A4, 23, 3, MCP4725_I2CADDR_DEFAULT, &I2C, 2, 3);
-  // lfo3.setup(A5, A6, 4, 0, MCP4725_I2CADDR_ALT, &I2C1, 4, 5);
   checkLFOs(false);
 
   // setup main clock for ticking LFOs
@@ -77,12 +64,13 @@ void setup() {
   timer.setCompare(0, F_CPU / 2500000 * clockResolution);
   timer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
   timer.enable(true);
-
-  // analogWrite(A1, 0);
+  
+  pinMode(setStepPin, OUTPUT);
+  digitalWrite(setStepPin, HIGH);
 }
 
 int oneVoltADC = ADC_RES / 6.6f;
-int oneVoltDAC = DAC_RES / 6.6f;
+int oneVoltDAC = 4096 / 6.6f;
 int lastVoiceVal = 0;
 
 void loop() {
@@ -94,7 +82,6 @@ void loop() {
   }
 
   checkLFOs(usingClock);
-  // updateLEDs();
 
   lastUsingClockIn = usingClock;
 
@@ -105,28 +92,23 @@ void loop() {
   }
 }
 
-void updateClockPeriod() {
-  if (lastClockTime) {
-    clockPeriod = micros() - lastClockTime;
-
-    if (usingClockIn()) {
-      resetLFOs();
-    }
+void stepSequence() {
+  currentStep++;
+  
+  if (currentStep > 1) {
+    currentStep = 0;
   }
-  lastClockTime = micros();
+  
+  digitalWrite(setStepPin, currentStep == 0 ? LOW : HIGH);
 }
 
 // check LFO inputs, takes about 162 micros
 void checkLFOs(bool usingClock) {
   lfo1.check(usingClock);
-  // lfo2.check(usingClock);
-  // lfo3.check(usingClock);
 }
 
 void resetLFOs() {
   lfo1.reset();
-  // lfo2.reset();
-  // lfo3.reset();
 }
 
 void initializeClockDivMultOptions() {
@@ -148,22 +130,4 @@ bool usingClockIn() {
 
 long scaleFromDACtoPWM(long value) {
   return value * PWM_RES / DAC_RES;
-}
-
-void updateLEDs() {
-  int lfo3Value = lfo3.getValue();
-  int inverseLfo3Value = DAC_RES - lfo3Value;
-  int lfo2Value = lfo2.getValue();
-  int inverseLfo2Value = DAC_RES - lfo2Value;
-  int lfo1Value = lfo1.getValue();
-  int inverseLfo1Value = DAC_RES - lfo1Value;
-  lfo2Value = lfo2Value * inverseLfo3Value / DAC_RES;
-  inverseLfo2Value = inverseLfo2Value * inverseLfo3Value / DAC_RES;
-  lfo1Value = lfo1Value * inverseLfo2Value / DAC_RES;
-  inverseLfo1Value = inverseLfo1Value * inverseLfo2Value / DAC_RES;
-  
-  // led4 is hooked up directly to lfo3Value, not controlled digitally
-  analogWrite(led3Pin, scaleFromDACtoPWM(lfo2Value));
-  analogWrite(led2Pin, scaleFromDACtoPWM(lfo1Value));
-  analogWrite(led1Pin, scaleFromDACtoPWM(inverseLfo1Value));
 }
