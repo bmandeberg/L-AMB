@@ -21,9 +21,9 @@ static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
 int clockDivMultTable[numOptions];
 bool lastUsingClockIn = false;
-const int stepPin = 5;
+const int stepPin = 7;
 int currentStep = 0;
-const int setStepPin = 7;
+const int setStepPin = 9;
 
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
@@ -41,11 +41,13 @@ void tickLFOs() {
 }
 
 void setup() {
-  Serial.begin(9600);
+  // Serial.begin(9600);
   initializeClockDivMultOptions();
 
   pinMode(stepPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(stepPin), stepSequence, RISING);
+  pinMode(setStepPin, OUTPUT);
+  digitalWrite(setStepPin, LOW);
 
   // initialize DAC DMA
   analogWriteResolution(12);
@@ -64,9 +66,6 @@ void setup() {
   timer.setCompare(0, F_CPU / 2500000 * clockResolution);
   timer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
   timer.enable(true);
-  
-  pinMode(setStepPin, OUTPUT);
-  digitalWrite(setStepPin, HIGH);
 }
 
 int oneVoltADC = ADC_RES / 6.6f;
@@ -92,14 +91,18 @@ void loop() {
   }
 }
 
+long stepTimer = 0;
 void stepSequence() {
-  currentStep++;
-  
-  if (currentStep > 1) {
-    currentStep = 0;
+  if (micros() - stepTimer > clockResolution * 2) {
+    currentStep++;
+
+    if (currentStep > 1) {
+      currentStep = 0;
+    }
+    
+    digitalWrite(setStepPin, currentStep == 0 ? LOW : HIGH);
   }
-  
-  digitalWrite(setStepPin, currentStep == 0 ? LOW : HIGH);
+  stepTimer = micros();
 }
 
 // check LFO inputs, takes about 162 micros
