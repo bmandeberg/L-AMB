@@ -9,13 +9,10 @@
 
 const int DAC_RES = 4095;
 const int ADC_RES = 1023;
-const int clockInPin = 10;
-const int clockSelectPin = 11;
-bool clockSelected = false;
+const int clockInPin = 1;
 volatile long clockPeriod = 0;
 volatile long lastClockTime = 0;
-const long minClockPeriod = 250;
-const long clockResolution = 50; // clock updates at 20KHz
+const long lfoUpdateResolution = 50; // in microseconds. LFOs update at 20KHz
 const int maxDivMult = 9;
 static const int numOptions = (maxDivMult - 1) * 2 + 1;
 const int knobRange = ADC_RES / numOptions;
@@ -26,71 +23,58 @@ uint8_t i2cBuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 LFO lfo1, lfo2, lfo3;
 Switch clockSelectSwitch;
 
-Adafruit_ZeroTimer zt = Adafruit_ZeroTimer(TIMER_NUM);
+Adafruit_ZeroTimer timer = Adafruit_ZeroTimer(TIMER_NUM);
 void TC3_Handler() {
   Adafruit_ZeroTimer::timerHandler(TIMER_NUM);
 }
 
 // tick LFOs within the ISR
 void tickLFOs() {
-  fillBuffer(0, lfo1.tickDacVal());
-  // fillBuffer(1, lfo2.tickDacVal());
-  // fillBuffer(2, lfo3.tickDacVal());
+  fillBuffer(0, lfo1.tick());
+  fillBuffer(1, lfo2.tick());
+  fillBuffer(2, lfo3.tick());
 
   I2C.write(); // in parallel via DMA, takes about 40 micros
 }
 
-void toggleClockSelected() {
-  clockSelected = !clockSelected;
-  if (!clockSelected) {
-    lastClockTime = 0;
-    clockPeriod = 0;
-  }
+// check LFO inputs, takes about 162 micros
+void checkLFOs(bool usingClock) {
+  lfo1.check(usingClock);
+  lfo2.check(usingClock);
+  lfo3.check(usingClock);
 }
 
 void setup() {
   initializeClockDivMultOptions();
 
-  Callback toggleClockCallback(toggleClockSelected);
-  clockSelectSwitch.setup(clockSelectPin, false, true, toggleClockCallback, toggleClockCallback);
-
   pinMode(clockInPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(clockInPin), updateClockPeriod, RISING);
 
   lfo1.setup(A0, A1, 2, 3);
-  // lfo2.setup(A2, A3, 4, 5);
-  // lfo3.setup(A4, A5, 7, 9);
-  checkLFOs();
+  lfo2.setup(A2, A3, 4, 5);
+  lfo3.setup(A4, A5, 7, 9);
+  checkLFOs(false);
 
   // initialize I2C for communicating with DAC via DMA
   I2C.begin(3400000);
   I2C.initWriteBytes(MCP4728_I2CADDR_DEFAULT, i2cBuffer, 8);
 
   // setup main clock for ticking LFOs
-  zt.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
-  zt.setCompare(0, F_CPU / 2500000 * clockResolution);
-  zt.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
-  zt.enable(true);
+  timer.configure(TC_CLOCK_PRESCALER_DIV1, TC_COUNTER_SIZE_16BIT, TC_WAVE_GENERATION_MATCH_FREQ);
+  timer.setCompare(0, F_CPU / 2500000 * lfoUpdateResolution);
+  timer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, tickLFOs);
+  timer.enable(true);
 }
 
 void loop() {
-  clockSelectSwitch.check();
-  checkLFOs();
-}
-
-void updateClockPeriod() {
-  if (lastClockTime) {
-    clockPeriod = micros() - lastClockTime;
-  }
-  lastClockTime = micros();
-}
-
-// check LFO inputs, takes about 162 micros
-void checkLFOs() {
   bool usingClock = usingClockIn();
-  lfo1.check(usingClock);
-  // lfo2.check(usingClock);
-  // lfo3.check(usingClock);
+  // disable external clock use if it is idled
+  if (usingClock && micros() - lastClockTime > lowSlowestPeriod) {
+    clockPeriod = 0;
+    usingClock = false;
+  }
+
+  checkLFOs(usingClock);
 
   lastUsingClockIn = usingClock;
 }
@@ -108,8 +92,25 @@ void initializeClockDivMultOptions() {
   }
 }
 
+void resetLFOs() {
+  lfo1.reset();
+  lfo2.reset();
+  lfo3.reset();
+}
+
 bool usingClockIn() {
-  return clockSelected && clockPeriod > minClockPeriod;
+  return clockPeriod > highFastestPeriod && clockPeriod < lowSlowestPeriod;
+}
+
+void updateClockPeriod() {
+  if (lastClockTime) {
+    clockPeriod = micros() - lastClockTime;
+
+    if (usingClockIn()) {
+      resetLFOs();
+    }
+  }
+  lastClockTime = micros();
 }
 
 void fillBuffer(int position, int value) {

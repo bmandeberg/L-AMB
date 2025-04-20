@@ -15,17 +15,23 @@ class LFO {
 
 public:
   void setup(int freqPin, int dutyPin, int wavePin, int rangePin);
-  int tickDacVal();
+  int tick();
   void check(bool usingClockIn);
   void setHigh();
   void setLow();
   void setTriangleWave();
   void setSquareWave();
+  void reset();
+  int getValue();
+  static void initializePeriodTables();
 
 private:
   long period = 1000000;
+  static long slowPeriodLogTable[1024];
+  static long fastPeriodLogTable[1024];
   int lastFreq;
   volatile long currentValue = 0;
+  int currentValueDescaled = 0;
   volatile long periodIncrement[2] = { 53673, 53673 }; // 0: pulse high, 1: pulse low
   long periodIncrementCopy[2];
   volatile bool rising = true;
@@ -35,11 +41,18 @@ private:
   bool triangleWaveSelected = true;
   int rangeSwitchPin;
   bool highRange = false;
+  bool lastRange = false;
   int lastDutyCycle;
   Switch waveSwitch;
   Switch rangeSwitch;
 };
 
 bool knobChanged(int thisKnob, int lastKnob);
+
+long multWithoutOverflow(long valA, long valB);
+
+int bufferedKnob(int knobVal);
+
+long periodLogValue(int knobVal, long slowestPeriod, long fastestPeriod);
 
 #endif // LFO_H
